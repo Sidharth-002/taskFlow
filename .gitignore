@@ -1,0 +1,40 @@
+### Backend (Maven / Java) ###
+backend/target/
+!backend/**/src/main/**/target/
+!backend/**/src/test/**/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+HELP.md
+
+### Frontend (Node / React) ###
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+### Environment / secrets ###
+.env
+*.env.local
+
+### IDE ###
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.classpath
+.project
+.settings/
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Logs ###
+*.log
+logs/

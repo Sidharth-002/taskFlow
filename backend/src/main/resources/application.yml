@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: flowdesk-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: false
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema. Hibernate must never auto-generate DDL,
+      # even in dev - migrations are the single source of truth.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Only safe, non-sensitive endpoints are exposed by default.
+        # Anything broader (env, beans, etc.) must be opted into per-profile
+        # and protected - never opened up just for local convenience.
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+logging:
+  pattern:
+    # correlationId is populated by a request filter added in a later phase
+    # (see common/CorrelationIdFilter) via MDC.
+    level: "%5p [%X{correlationId:-}]"

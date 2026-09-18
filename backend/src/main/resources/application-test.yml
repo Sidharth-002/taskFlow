@@ -1,0 +1,8 @@
+# Test profile.
+# Placeholder for now - wired up properly in Phase 10 (Testing), where
+# Testcontainers supplies an ephemeral PostgreSQL instance and overrides
+# spring.datasource.* dynamically via @DynamicPropertySource rather than
+# fixed values living in this file.
+spring:
+  flyway:
+    enabled: true

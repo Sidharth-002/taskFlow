@@ -1,0 +1,22 @@
+# Production profile.
+# No fallback defaults for credentials or secrets are provided here -
+# deployment must fail fast at startup if required environment variables
+# are missing, rather than silently falling back to a dev-friendly value.
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    show-sql: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  level:
+    com.flowdesk: INFO
+    org.hibernate.SQL: WARN

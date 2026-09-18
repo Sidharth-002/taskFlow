@@ -1,0 +1,23 @@
+# Local development profile.
+# Values are sourced from environment variables (see ../../../.env.example
+# at the repo root) with developer-friendly local defaults as fallbacks.
+# Defaults intentionally match docker-compose.yml so `docker compose up`
+# followed by running the app locally works with zero extra setup.
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:flowdesk}
+    username: ${DB_USERNAME:flowdesk}
+    password: ${DB_PASSWORD:flowdesk}
+  jpa:
+    show-sql: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,beans
+
+logging:
+  level:
+    com.flowdesk: DEBUG
+    org.hibernate.SQL: DEBUG
