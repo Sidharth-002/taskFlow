@@ -19,6 +19,7 @@ import com.flowdesk.user.entity.User;
 import com.flowdesk.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -55,13 +56,25 @@ class DomainEntityMappingTest {
     @PersistenceContext
     private EntityManager entityManager;
 
+    /**
+     * Emails are unique per call (not fixed strings like "admin@acme.test")
+     * so this test is never fragile against leftover data from another
+     * source - manual API testing against the same dev database, a
+     * previous failed run that didn't roll back cleanly, etc.
+     */
+    private String uniqueEmail(String prefix) {
+        return prefix + "-" + UUID.randomUUID() + "@acme.test";
+    }
+
     @Test
     void persistsFullDomainGraphWithRelationships() {
         Organization org = organizationRepository.save(Organization.builder().name("Acme Inc").build());
+        String adminEmail = uniqueEmail("admin");
+        String agentEmail = uniqueEmail("agent");
 
         User admin = userRepository.save(User.builder()
                 .organization(org)
-                .email("admin@acme.test")
+                .email(adminEmail)
                 .passwordHash("hashed")
                 .firstName("Ada")
                 .lastName("Admin")
@@ -70,7 +83,7 @@ class DomainEntityMappingTest {
 
         User agent = userRepository.save(User.builder()
                 .organization(org)
-                .email("agent@acme.test")
+                .email(agentEmail)
                 .passwordHash("hashed")
                 .firstName("Alex")
                 .lastName("Agent")
@@ -111,25 +124,26 @@ class DomainEntityMappingTest {
         assertThat(reloaded.getOrganization().getId()).isEqualTo(org.getId());
         assertThat(reloaded.getProject().getName()).isEqualTo("Website");
         assertThat(reloaded.getTeam().getName()).isEqualTo("Support");
-        assertThat(reloaded.getCreatedBy().getEmail()).isEqualTo("admin@acme.test");
-        assertThat(reloaded.getAssignedTo().getEmail()).isEqualTo("agent@acme.test");
+        assertThat(reloaded.getCreatedBy().getEmail()).isEqualTo(adminEmail);
+        assertThat(reloaded.getAssignedTo().getEmail()).isEqualTo(agentEmail);
         assertThat(reloaded.getCreatedAt()).isNotNull();
         assertThat(reloaded.getVersion()).isNotNull();
 
         Team reloadedTeam = teamRepository.findById(team.getId()).orElseThrow();
-        assertThat(reloadedTeam.getMembers()).extracting(User::getEmail).containsExactly("agent@acme.test");
-        assertThat(reloadedTeam.getTeamLead().getEmail()).isEqualTo("admin@acme.test");
+        assertThat(reloadedTeam.getMembers()).extracting(User::getEmail).containsExactly(agentEmail);
+        assertThat(reloadedTeam.getTeamLead().getEmail()).isEqualTo(adminEmail);
     }
 
     @Test
     void enforcesUniqueEmailConstraint() {
         Organization org = organizationRepository.save(Organization.builder().name("Acme Inc").build());
+        String email = uniqueEmail("dup");
         userRepository.saveAndFlush(User.builder()
-                .organization(org).email("dup@acme.test").passwordHash("x")
+                .organization(org).email(email).passwordHash("x")
                 .firstName("A").lastName("B").role(Role.USER).build());
 
         assertThatThrownBy(() -> userRepository.saveAndFlush(User.builder()
-                .organization(org).email("dup@acme.test").passwordHash("x")
+                .organization(org).email(email).passwordHash("x")
                 .firstName("C").lastName("D").role(Role.USER).build()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -138,7 +152,7 @@ class DomainEntityMappingTest {
     void superAdminHasNoOrganization() {
         User superAdmin = userRepository.saveAndFlush(User.builder()
                 .organization(null)
-                .email("platform@flowdesk.test")
+                .email(uniqueEmail("platform"))
                 .passwordHash("x")
                 .firstName("Super")
                 .lastName("Admin")
@@ -155,7 +169,7 @@ class DomainEntityMappingTest {
     void ticketVersionIncrementsOnUpdate_dirtyCheckingDemonstration() {
         Organization org = organizationRepository.save(Organization.builder().name("Acme Inc").build());
         User user = userRepository.save(User.builder()
-                .organization(org).email("creator@acme.test").passwordHash("x")
+                .organization(org).email(uniqueEmail("creator")).passwordHash("x")
                 .firstName("C").lastName("R").role(Role.USER).build());
         Project project = projectRepository.save(Project.builder().organization(org).name("P1").build());
 

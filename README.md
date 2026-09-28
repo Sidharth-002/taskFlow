@@ -11,7 +11,7 @@ CI-backed delivery pipeline.
 The backend is the primary focus of this project. The frontend (React +
 TypeScript) is intentionally kept simpler.
 
-> **Status:** Phase 3 (Authentication) complete. See [Development phases](#development-phases) below.
+> **Status:** Phase 4 (Ticket Workflow) complete. See [Development phases](#development-phases) below.
 
 ## Project overview
 
@@ -123,20 +123,61 @@ com.flowdesk.auth
 
 com.flowdesk.ticket
 ├── entity/        Ticket, TicketStatus, TicketPriority
-└── repository/    TicketRepository
-    (service/, controller/, dto/, mapper/ land here in Phase 4)
+├── repository/    TicketRepository
+├── service/       TicketService, TicketWorkflow
+├── controller/    TicketController
+├── dto/           CreateTicketRequest, UpdateTicketRequest, TicketResponse
+├── mapper/        TicketMapper
+└── exception/     InvalidTicketTransitionException
 ```
 
 ## Multi-tenancy
 
-*(Enforced starting Phase 5; documented in detail once implemented.)*
-
 FlowDesk uses a **shared database, shared schema** multi-tenant model.
 Tenant-owned tables carry an `organization_id` column, and tenant isolation
-is enforced in the service/repository layer — never assumed from the
-frontend. A user from Organization A must never be able to read or modify
-Organization B's data via any API, regardless of what IDs are guessed or
-passed in.
+is enforced in the service layer — never assumed from the frontend. A user
+from Organization A must never be able to read or modify Organization B's
+data via any API, regardless of what IDs are guessed or passed in.
+
+**Brought forward from Phase 5 into Phase 4.** The spec's own phase plan
+puts tenant-isolation *testing* in Phase 5, separately from ticket CRUD in
+Phase 4 - but that would mean shipping ticket/project endpoints with a
+known cross-org data leak for a whole phase and calling it "coming later."
+Every service added in Phase 4 (`ProjectService`, `TicketService`,
+`CommentService`, `UserService`) checks the resource's `organization_id`
+against the caller's before returning or mutating anything, from the
+start. Phase 5 is where this gets hardened and tested *systematically*
+across every module at once, rather than closing a hole that was left
+open on purpose.
+
+**The pattern, used identically in every service:**
+
+```java
+private Project loadTenantScoped(Long id, AuthenticatedPrincipal caller) {
+    Project project = projectRepository.findById(id)
+            .orElseThrow(() -> ResourceNotFoundException.of("Project", id));
+    if (!project.getOrganization().getId().equals(caller.organizationId())) {
+        throw new TenantAccessDeniedException(/* ... */);
+    }
+    return project;
+}
+```
+
+`TenantAccessDeniedException` is a distinct type internally (so logs and
+code clearly show *why* access was denied), but is mapped to the exact
+same 404 response as a genuinely missing resource - see
+[Architecture decisions](#architecture-decisions-adr-style) for why a 403
+here would actually leak information.
+
+**Role-based visibility is layered on top of, and enforced the same way
+as, tenant isolation.** Section 6 of the spec doesn't just say "stay
+within your organization" - a plain `USER` should see only tickets they
+created, an `AGENT` only ones assigned to them, a `TEAM_LEAD` only their
+team's. `TicketService.isVisibleToCaller` enforces this per-role rule
+right alongside the tenant check, and the *same* exception/response
+(404) covers both "wrong organization" and "right organization, but not
+within your role's visibility scope" - both should look identical to a
+caller who shouldn't see the resource either way.
 
 ## Authentication flow
 
@@ -252,6 +293,74 @@ no cross-site request forgery vector to defend against here. **CORS** is
 configured with an explicit allow-list (`app.cors.allowed-origins`,
 defaulting to the local Vite/CRA dev server ports), not a wildcard.
 
+## Ticket workflow
+
+```mermaid
+stateDiagram-v2
+    [*] --> OPEN
+    OPEN --> IN_PROGRESS
+    IN_PROGRESS --> WAITING
+    WAITING --> IN_PROGRESS
+    IN_PROGRESS --> RESOLVED
+    RESOLVED --> CLOSED
+    CLOSED --> [*]
+```
+
+Enforced in `ticket.service.TicketWorkflow`, a plain stateless lookup
+table - `OPEN -> CLOSED` directly, or any other transition not drawn
+above, is rejected with `InvalidTicketTransitionException` (409). There's
+deliberately no `RESOLVED -> IN_PROGRESS` "reopen" path, even though a
+real product would likely want one eventually - only the transitions the
+spec explicitly draws are implemented; adding a reopen path is a one-line
+change to the transition map when a real requirement calls for it, not a
+"for completeness" addition now. `TicketWorkflowTest` checks every
+`(from, to)` pair against this exact graph, not just a couple of
+happy-path examples.
+
+### Role permissions (Section 6 of the spec)
+
+| Action | ORG_ADMIN | TEAM_LEAD | AGENT | USER |
+|---|---|---|---|---|
+| Create ticket | ✅ | ✅ | ✅ | ✅ |
+| View ticket | any in org | their team's | assigned to them | created by them |
+| Update fields / change status | ✅ | ✅ (their team's) | ✅ (assigned to them) | ❌ |
+| Reassign (`teamId`/`assignedToId`) | ✅ | ✅ | ❌ | ❌ |
+| Delete ticket | ✅ | ❌ | ❌ | ❌ |
+| Comment | ✅ | ✅ | ✅ | ✅ (their own tickets) |
+| Edit own comment | ✅ | ✅ | ✅ | ✅ |
+| Delete own comment | ✅ | ✅ | ✅ | ✅ |
+| Delete *any* comment (moderation) | ✅ | ❌ | ❌ | ❌ |
+
+The last row is an addition beyond the spec's literal "delete own
+comment" - some minimal moderation capability for an admin role is a
+reasonable, small extension, not scope creep.
+
+`GET /api/tickets` uses one fixed, role-specific query rather than a
+single dynamic one (`TicketRepository.findByOrganizationIdAndCreatedById`,
+`...AndAssignedToId`, `...AndTeamTeamLeadId`, or the unscoped
+`findByOrganizationId` for `ORG_ADMIN`) - combining this default
+visibility scope with *user-supplied* filters (status/priority/search) is
+Phase 6's job, via `JpaSpecificationExecutor`.
+
+### Prerequisites this phase added
+
+The spec's Section 15 lists ticket CRUD endpoints, but a ticket has a
+**required** `project` foreign key, and no phase in the spec's plan ever
+builds a Project API - so ticket creation was untestable without one.
+Two small, necessary additions came out of that gap:
+
+- **Minimal Project CRUD** (`POST/GET/PUT /api/projects`,
+  `PATCH /api/projects/{id}/archive`) - `ORG_ADMIN` for
+  create/update/archive, any org member for read.
+- **Minimal User endpoints** - read-only listing
+  (`GET /api/users`, `GET /api/users/{id}`) so a ticket's assignee can be
+  chosen at all, plus `POST /api/users` (`ORG_ADMIN`-only). The latter was
+  *not* part of the original Phase 4 scope - it was added after manual
+  verification showed that registration only ever creates the first
+  `ORG_ADMIN`, meaning an organization could never have a second user to
+  assign anything to. Full self-service user management (deactivate,
+  change role, search) is still deferred.
+
 ## Database schema
 
 ```mermaid
@@ -318,10 +427,18 @@ erDiagram
         boolean revoked
         bigint version "optimistic lock, see note below"
     }
+    TICKET ||--o{ COMMENT : has
+    USER ||--o{ COMMENT : writes
+    COMMENT {
+        bigint id PK
+        bigint ticket_id FK
+        bigint author_id FK
+        text body
+    }
 ```
 
 Migrations: `backend/src/main/resources/db/migration/V1__create_organizations.sql`
-through `V7__create_refresh_tokens.sql`.
+through `V8__create_comments.sql`.
 
 ### Schema design decisions
 
@@ -368,6 +485,12 @@ through `V7__create_refresh_tokens.sql`.
   `RefreshTokenConcurrencyTest` proves this with two genuinely-overlapping
   transactions (a `CyclicBarrier` forces both to read before either
   writes) rather than just asserting the annotation is present.
+- **`comments` has no `@Version`**, unlike `tickets` and
+  `refresh_tokens`. An edit conflict on a single free-text field, by its
+  own author, is low-stakes and low-probability enough that optimistic
+  locking would be solving a problem this entity doesn't really have -
+  last-write-wins is an acceptable outcome for a comment body in a way it
+  isn't for a ticket's workflow state or a security credential.
 
 ## JPA / Hibernate
 
@@ -402,7 +525,30 @@ through `V7__create_refresh_tokens.sql`.
 - **N+1 prevention** is a query-shape concern (list endpoints, filters,
   projections) rather than a mapping concern, so it's addressed where
   those queries are actually written — ticket listing/filtering in
-  Phase 6.
+  Phase 6. `TicketMapper` maps only association *IDs*
+  (`ticket.getProject().getId()`), never names - calling `getId()` on a
+  lazy proxy is answered from the proxy's own identifier without a query,
+  so this is N+1-safe by construction even across a paginated list.
+  `CommentMapper` is the one deliberate exception: it does resolve
+  `author.getFullName()`, accepting one lazy-load per comment, because a
+  single ticket's comment thread is naturally small and bounded (unlike
+  the org-wide ticket list) - showing who wrote each comment is basic
+  expected functionality, not worth deferring to a projection.
+- **Flushing before mapping to a response DTO, on every update.** Found
+  via manual API testing while verifying Phase 4, not by inspection:
+  `TicketService.update` mutated a managed `Ticket` with setters and
+  mapped it to `TicketResponse` immediately afterward using plain
+  `save()`. The response showed the ticket's *previous* `version` and
+  `updatedAt` - both are only written by Hibernate at flush time
+  (`@Version` incrementing, and the `@LastModifiedDate` auditing
+  listener's `@PreUpdate` callback), which for a plain `save()` doesn't
+  happen until the transaction commits, *after* the DTO was already
+  built. `ProjectService.update`/`archive` and `CommentService.update`
+  had the same bug. Fixed by using `saveAndFlush` before mapping in all
+  three - forcing the flush to happen (and any
+  `ObjectOptimisticLockingFailureException` to surface) inside the
+  method, before the response is constructed. `TicketWorkflowIntegrationTest`
+  asserts the exact post-update version as a regression check.
 
 ## Redis
 
@@ -440,8 +586,23 @@ before moving on:
   asserting `@Version` is present.
 - **`DomainEntityMappingTest`** (Phase 2) - entity relationships,
   DB-level constraints, dirty checking.
+- **`TicketWorkflowTest`** - exhaustively checks every `(from, to)`
+  status pair against the documented transition graph, not just a few
+  happy-path examples.
+- **`TicketServiceTest`** (18 cases) - the full role-visibility matrix
+  (`ORG_ADMIN`/`TEAM_LEAD`/`AGENT`/`USER` x visible/not-visible),
+  workflow validation, reassignment authorization, tenant scoping.
+- **`ProjectServiceTest`**, **`CommentServiceTest`** - tenant scoping,
+  ownership rules (edit own comment only; `ORG_ADMIN` delete override).
+- **`TicketWorkflowIntegrationTest`** (MockMvc, real security filter
+  chain) - full lifecycle (create → assign → transition → comment),
+  invalid transition → 409, cross-org access → 404 (not 403), role-based
+  update/delete rejections → 403, role-scoped list visibility, comment
+  ownership. Complements the unit tests by proving the HTTP/security
+  wiring - status codes, `@PreAuthorize`, (de)serialization - rather than
+  re-checking every business-rule permutation already covered above.
 
-27 tests total as of Phase 3, all passing.
+74 tests total as of Phase 4, all passing.
 
 ## Running locally
 
@@ -580,6 +741,41 @@ someone), which needs RBAC (Phase 5) to be meaningful - building it
 before then would mean either no authorization check at all, or a check
 with nothing yet to enforce it against.
 
+**Why does a cross-organization access attempt return 404, not 403?**
+Returning 403 ("forbidden") confirms to the caller that a resource with
+that ID exists *somewhere*, just not in an organization they can access -
+a minor but real information leak. A uniform 404 doesn't distinguish
+"this doesn't exist" from "this isn't yours", which is the more secure
+default for a multi-tenant API. Internally, `TenantAccessDeniedException`
+stays a distinct exception type from `ResourceNotFoundException` so logs
+and code remain clear about *why* access was denied - only the
+client-visible response is deliberately identical.
+
+**Why do `PUT` and `PATCH /api/tickets/{id}` share one implementation?**
+Strict REST semantics would have `PUT` replace the full resource and
+`PATCH` apply a partial change. FlowDesk's real constraint is which
+*status transitions* are legal (Section 14), not whether every field was
+resupplied on a given call - so both verbs share one partial-update
+`UpdateTicketRequest` (every field optional; only non-null ones are
+applied) rather than maintaining two DTOs and two code paths for a
+distinction that doesn't carry real weight here. The known limitation
+this creates - `teamId`/`assignedToId` can be changed but not explicitly
+cleared back to unassigned through this endpoint, since a missing field
+and an explicit `null` are indistinguishable - is documented on the DTO
+itself.
+
+**Why does default ticket visibility (Section 6's per-role scoping) get
+implemented in Phase 4, not deferred to Phase 6 with the other
+filtering/search work?** Phase 6 owns *user-supplied* filters (status,
+priority, keyword search) layered on top of a base query. But shipping
+`GET /api/tickets` with no role-based scoping at all - so a plain `USER`
+sees every ticket in the organization - would be a permission bug, not
+an incomplete feature. Section 6's visibility rules are basic correctness
+for this endpoint to exist safely, so they're implemented now via one
+fixed repository query per role; Phase 6 replaces this with a single
+dynamic query that combines role-scoping and user-supplied filters
+together via `JpaSpecificationExecutor`.
+
 ## Development phases
 
 This project is built incrementally, one phase at a time, each verified
@@ -588,8 +784,8 @@ This project is built incrementally, one phase at a time, each verified
 - [x] **Phase 1** — Project setup (Spring Boot, Maven, PostgreSQL, Flyway, Docker, health endpoint)
 - [x] **Phase 2** — Core domain (Organization, User, Team, Project, Ticket)
 - [x] **Phase 3** — Authentication (JWT, refresh tokens, BCrypt, Spring Security)
-- [ ] Phase 4 — Ticket workflow (CRUD, transitions, comments, validation)
-- [ ] Phase 5 — Multi-tenancy enforcement
+- [x] **Phase 4** — Ticket workflow (CRUD, transitions, comments, validation) + minimal Project/User endpoints (discovered prerequisites) + tenant isolation (brought forward from Phase 5)
+- [ ] Phase 5 — Multi-tenancy hardening (systematic cross-module testing) + full Team/User management
 - [ ] Phase 6 — Advanced JPA (pagination, specifications, projections, N+1, optimistic locking)
 - [ ] Phase 7 — Redis (caching, rate limiting)
 - [ ] Phase 8 — Kafka (domain events, notification/audit consumers)
