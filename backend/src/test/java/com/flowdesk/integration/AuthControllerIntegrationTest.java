@@ -24,8 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
  * endpoint, refresh rotation, and logout) via MockMvc - as close to a real
  * HTTP client as a test gets without actually binding a port.
  *
- * <p>Runs against the docker-compose PostgreSQL instance (dev profile);
- * replaced by a Testcontainers-backed base class in Phase 10.
+ * <p>Runs against an ephemeral Testcontainers PostgreSQL instance (Phase
+ * 10) - no local Docker state or manual setup required.
  */
 @WebIntegrationTest
 @Transactional

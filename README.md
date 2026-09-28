@@ -11,7 +11,7 @@ CI-backed delivery pipeline.
 The backend is the primary focus of this project. The frontend (React +
 TypeScript) is intentionally kept simpler.
 
-> **Status:** Phase 10 (Testing: Testcontainers) complete. See [Development phases](#development-phases) below.
+> **Status:** Phase 11 (Production readiness) complete. See [Development phases](#development-phases) below.
 
 ## Project overview
 
@@ -1005,8 +1005,17 @@ not adding new coverage. All 141 pre-existing tests were verified to
 still pass identically against Testcontainers, including a full run with
 `docker compose down` first - proving none of them secretly still
 depended on the shared dev services.
+- **`CorrelationIdFilterTest`** (Phase 11) - a fresh UUID is generated and
+  returned when the caller doesn't supply one, an incoming
+  `X-Correlation-Id` is echoed back unchanged, and two separate requests
+  never get the same generated ID.
+- **`OpenApiIntegrationTest`** (Phase 11) - `/v3/api-docs` and
+  `/swagger-ui/index.html` are both reachable without authentication (the
+  `permitAll` rule in `SecurityConfig`), and the generated schema actually
+  contains `OpenApiConfig`'s metadata and security scheme, not just a 200
+  with an empty body.
 
-141 tests total as of Phase 10, all passing.
+146 tests total as of Phase 11, all passing.
 
 ## Running locally
 
@@ -1062,8 +1071,69 @@ needs one to start those containers in.
 
 ## API documentation
 
-*(Swagger/OpenAPI UI wired up in Phase 11, available at `/swagger-ui.html`
-once implemented.)*
+Swagger UI is at `/swagger-ui.html` (redirects to `/swagger-ui/index.html`),
+the raw OpenAPI schema at `/v3/api-docs` - both `permitAll` in
+`SecurityConfig` (safe unconditionally: they're disabled entirely in
+`prod`, at which point springdoc doesn't even register the controllers
+behind those paths, so they simply 404 there regardless of the security
+rule). A "bearer" JWT security scheme (`config.OpenApiConfig`) makes
+Swagger UI's "Authorize" button work for trying a protected endpoint
+directly from the browser.
+
+Generated automatically from each controller's method signatures, path/
+query parameters, and the Bean Validation annotations already on every
+request DTO - not hand-annotated with `@Operation`/`@ApiResponse` on
+every endpoint. That's a deliberate scope decision: this README already
+documents the API in depth, and annotating close to 40 endpoints for
+marginally better generated descriptions wasn't judged worth the
+boilerplate. Each controller does carry a `@Tag` so Swagger UI groups
+endpoints by module (Auth, Tickets, Teams, ...) instead of listing all of
+them flat.
+
+## Observability and operations
+
+**Correlation IDs.** `common.CorrelationIdFilter` populates a
+`correlationId` MDC key for every request - reusing an incoming
+`X-Correlation-Id` header if the caller (or an upstream gateway) already
+supplied one, generating a fresh UUID otherwise - and echoes it back on
+the response either way. Every log line written while handling that
+request carries the same ID (`logging.pattern.level` in
+`application.yml`), so tracing one request's logs out of a busy server -
+or, in production, out of a log aggregator - is a single string match.
+Registered as a plain `@Component` with `@Order(HIGHEST_PRECEDENCE)`
+rather than through `SecurityConfig.addFilterBefore` like
+`JwtAuthenticationFilter`/`AuthRateLimitFilter` - those only control
+ordering *within* Spring Security's filter chain, which is itself one
+filter in the servlet container's pipeline; this needs to run before that
+entire chain, so even a request rejected by rate limiting or
+authentication still gets logged with a correlation ID and still gets the
+response header.
+
+**Structured logging.** `prod` (`application-prod.yml`) switches console
+output to Elastic Common Schema JSON (`logging.structured.format.console:
+ecs`, a Spring Boot 3.4+ built-in feature - no extra dependency) so a real
+deployment's log aggregator parses structured fields directly instead of
+regex-scraping a human-readable line; MDC entries, including
+`correlationId`, are included as fields automatically. `dev`/`test` keep
+the default human-readable pattern, where a developer is reading logs
+directly in a terminal.
+
+**Actuator.** `/actuator/health`/`info`/`metrics` have been exposed since
+Phase 1; Phase 11 adds real content to `/actuator/info` via the
+`spring-boot-maven-plugin`'s `build-info` execution (application name,
+version, build timestamp) - without it, `/actuator/info` returned an
+empty body despite being exposed the whole time. Exposure stays
+deliberately minimal in every profile (`env`/`beans` are dev-only, per
+`application-dev.yml`) - broader diagnostic endpoints are real attack
+surface in production, not free observability.
+
+**CI** (`.github/workflows/ci.yml`) runs `./mvnw clean verify` on every
+push/PR to `main` - a single job, no Postgres/Kafka/Redis service
+containers declared, because Phase 10 already moved every integration
+test onto Testcontainers. GitHub-hosted `ubuntu-latest` runners have a
+Docker daemon preinstalled, so the workflow is exactly as self-contained
+as running the suite on a developer's own machine - no infrastructure
+setup step to keep in sync between the two.
 
 ## Architecture decisions (ADR-style)
 
@@ -1220,7 +1290,7 @@ This project is built incrementally, one phase at a time, each verified
 - [x] **Phase 8** — Kafka (`ticket-events` topic, publish-then-relay-after-commit, independent notification/audit consumer groups)
 - [x] **Phase 9** — Dashboard (`GET /api/dashboard/summary`, role-scoped, Redis-cached) + scheduled jobs (overdue ticket detection via a domain event, expired refresh token cleanup)
 - [x] **Phase 10** — Testing (every integration test migrated to ephemeral Testcontainers Postgres/Kafka/Redis, a real `test` profile, hermetic - no `docker compose up` needed to run the suite)
-- [ ] Phase 11 — Production readiness (Actuator, logging, correlation IDs, CI, OpenAPI)
+- [x] **Phase 11** — Production readiness (correlation IDs, structured JSON logging in prod, `/actuator/info` build metadata, GitHub Actions CI, OpenAPI/Swagger UI)
 - [ ] Phase 12 — React frontend
 
 ## Repository layout
@@ -1231,5 +1301,5 @@ flowdesk/
 ├── frontend/           React + TypeScript SPA (added in Phase 12)
 ├── docker-compose.yml  Local infrastructure (Postgres, Redis, Kafka)
 ├── .env.example        Environment variable template
-└── .github/workflows/  CI pipeline (added in Phase 11)
+└── .github/workflows/  CI pipeline (ci.yml)
 ```

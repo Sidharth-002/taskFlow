@@ -6,6 +6,7 @@ import com.flowdesk.user.dto.CreateUserRequest;
 import com.flowdesk.user.dto.SetActiveRequest;
 import com.flowdesk.user.dto.UserSummaryResponse;
 import com.flowdesk.user.service.UserService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
  * organization to scope to. Every mutating endpoint is {@code ORG_ADMIN}-only.
  */
 @RestController
+@Tag(name = "Users")
 @RequestMapping("/api/users")
 @PreAuthorize("hasAnyRole('ORG_ADMIN', 'TEAM_LEAD', 'AGENT', 'USER')")
 public class UserController {

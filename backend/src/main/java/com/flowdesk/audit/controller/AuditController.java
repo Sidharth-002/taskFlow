@@ -3,6 +3,7 @@ package com.flowdesk.audit.controller;
 import com.flowdesk.audit.dto.AuditLogResponse;
 import com.flowdesk.audit.service.AuditService;
 import com.flowdesk.security.AuthenticatedPrincipal;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
  * viewing the ticket itself.
  */
 @RestController
+@Tag(name = "Audit")
 @RequestMapping("/api/tickets/{ticketId}/audit-log")
 @PreAuthorize("hasAnyRole('ORG_ADMIN', 'TEAM_LEAD', 'AGENT', 'USER')")
 public class AuditController {

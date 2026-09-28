@@ -102,6 +102,12 @@ public class SecurityConfig {
                                 "/api/auth/refresh", "/api/auth/logout")
                         .permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // Unconditionally permitted, but only actually
+                        // reachable when springdoc is enabled - see
+                        // OpenApiConfig's Javadoc for why that's safe
+                        // (disabled entirely in prod, so these 404 there
+                        // regardless of this rule).
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
                 // Ahead of JWT parsing - a request that's going to be

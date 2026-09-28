@@ -3,6 +3,7 @@ package com.flowdesk.notification.controller;
 import com.flowdesk.notification.dto.NotificationResponse;
 import com.flowdesk.notification.service.NotificationService;
 import com.flowdesk.security.AuthenticatedPrincipal;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  * {@code NotificationService}'s Javadoc).
  */
 @RestController
+@Tag(name = "Notifications")
 @RequestMapping("/api/notifications")
 @PreAuthorize("hasAnyRole('ORG_ADMIN', 'TEAM_LEAD', 'AGENT', 'USER')")
 public class NotificationController {

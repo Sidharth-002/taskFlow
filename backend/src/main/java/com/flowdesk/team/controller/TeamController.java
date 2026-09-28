@@ -6,6 +6,7 @@ import com.flowdesk.team.dto.CreateTeamRequest;
 import com.flowdesk.team.dto.TeamResponse;
 import com.flowdesk.team.service.TeamService;
 import com.flowdesk.user.dto.UserSummaryResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * {@code @PreAuthorize} can't express "only your team".
  */
 @RestController
+@Tag(name = "Teams")
 @RequestMapping("/api/teams")
 @PreAuthorize("hasAnyRole('ORG_ADMIN', 'TEAM_LEAD', 'AGENT', 'USER')")
 public class TeamController {

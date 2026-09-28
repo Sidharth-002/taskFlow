@@ -4,6 +4,7 @@ import com.flowdesk.comment.dto.CommentResponse;
 import com.flowdesk.comment.dto.CreateCommentRequest;
 import com.flowdesk.comment.service.CommentService;
 import com.flowdesk.security.AuthenticatedPrincipal;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Javadoc.
  */
 @RestController
+@Tag(name = "Comments")
 @PreAuthorize("hasAnyRole('ORG_ADMIN', 'TEAM_LEAD', 'AGENT', 'USER')")
 public class CommentController {
 

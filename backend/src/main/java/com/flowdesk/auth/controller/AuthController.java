@@ -7,6 +7,7 @@ import com.flowdesk.auth.dto.RegisterRequest;
 import com.flowdesk.auth.service.AuthService;
 import com.flowdesk.security.AuthenticatedPrincipal;
 import com.flowdesk.user.dto.UserSummaryResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "Auth")
 @RequestMapping("/api/auth")
 public class AuthController {
 

@@ -9,6 +9,7 @@ import com.flowdesk.ticket.dto.UpdateTicketRequest;
 import com.flowdesk.ticket.entity.TicketPriority;
 import com.flowdesk.ticket.entity.TicketStatus;
 import com.flowdesk.ticket.service.TicketService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
  * manage a ticket's lifecycle from there.
  */
 @RestController
+@Tag(name = "Tickets")
 @RequestMapping("/api/tickets")
 @PreAuthorize("hasAnyRole('ORG_ADMIN', 'TEAM_LEAD', 'AGENT', 'USER')")
 public class TicketController {

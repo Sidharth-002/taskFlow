@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build and test (backend)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      # No `docker compose up` step, and no service containers declared
+      # above - Phase 10 moved every integration test onto ephemeral
+      # Testcontainers (Postgres, Kafka, Redis), which only need a Docker
+      # daemon to talk to. GitHub-hosted ubuntu-latest runners already
+      # have one preinstalled, so `mvn verify` is self-contained here the
+      # same way it is on a developer's machine.
+      - name: Build and run full test suite
+        working-directory: backend
+        run: ./mvnw -B -ntp clean verify
+
+      - name: Upload surefire reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports/
+          retention-days: 7

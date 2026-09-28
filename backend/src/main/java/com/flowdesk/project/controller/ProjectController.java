@@ -5,6 +5,7 @@ import com.flowdesk.project.dto.ProjectResponse;
 import com.flowdesk.project.dto.UpdateProjectRequest;
 import com.flowdesk.project.service.ProjectService;
 import com.flowdesk.security.AuthenticatedPrincipal;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * organization (see {@code User.organization}'s Javadoc).
  */
 @RestController
+@Tag(name = "Projects")
 @RequestMapping("/api/projects")
 @PreAuthorize("hasAnyRole('ORG_ADMIN', 'TEAM_LEAD', 'AGENT', 'USER')")
 public class ProjectController {
