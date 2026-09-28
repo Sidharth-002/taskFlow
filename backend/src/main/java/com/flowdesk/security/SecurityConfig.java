@@ -1,5 +1,9 @@
 package com.flowdesk.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flowdesk.ratelimit.AuthRateLimitFilter;
+import com.flowdesk.ratelimit.RateLimitProperties;
+import com.flowdesk.ratelimit.RateLimiterService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -41,6 +45,9 @@ public class SecurityConfig {
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final JwtService jwtService;
+    private final RateLimiterService rateLimiterService;
+    private final RateLimitProperties rateLimitProperties;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
     private List<String> allowedOrigins;
@@ -48,10 +55,16 @@ public class SecurityConfig {
     public SecurityConfig(
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler,
-            JwtService jwtService) {
+            JwtService jwtService,
+            RateLimiterService rateLimiterService,
+            RateLimitProperties rateLimitProperties,
+            ObjectMapper objectMapper) {
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
         this.jwtService = jwtService;
+        this.rateLimiterService = rateLimiterService;
+        this.rateLimitProperties = rateLimitProperties;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -90,7 +103,15 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
+                // Ahead of JWT parsing - a request that's going to be
+                // rejected for exceeding the auth rate limit shouldn't pay
+                // for token validation (or, for /login, a database hit)
+                // first. See AuthRateLimitFilter's Javadoc for which
+                // endpoints this actually applies to.
+                .addFilterBefore(
+                        new AuthRateLimitFilter(rateLimiterService, rateLimitProperties, objectMapper),
+                        JwtAuthenticationFilter.class);
 
         return http.build();
     }

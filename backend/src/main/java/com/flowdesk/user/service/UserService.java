@@ -1,5 +1,7 @@
 package com.flowdesk.user.service;
 
+import static com.flowdesk.common.config.CacheConfig.USERS_CACHE;
+
 import com.flowdesk.auth.service.AuthService;
 import com.flowdesk.common.exception.DuplicateResourceException;
 import com.flowdesk.common.exception.ResourceNotFoundException;
@@ -12,6 +14,8 @@ import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
 import com.flowdesk.user.mapper.UserMapper;
 import com.flowdesk.user.repository.UserRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,6 +28,17 @@ import org.springframework.transaction.annotation.Transactional;
  * profile editing and search are still left for a later pass - only the
  * admin actions needed to actually run an organization (add a colleague,
  * remove one's access, change their role) are implemented.
+ *
+ * <p>{@code getById} is cached (Phase 7, see {@code CacheConfig} and
+ * {@code ProjectService}'s Javadoc for the caching rationale/key
+ * convention). {@code setActive}/{@code changeRole} evict it -
+ * particularly important here, more so than for Project/Team, since a
+ * stale cached {@code active}/{@code role} value served back through
+ * {@code GET /api/users/{id}} would visibly contradict the access that
+ * was just revoked/changed (even though the JWT/refresh-token revocation
+ * in {@code AuthService} is what actually enforces the change - this
+ * eviction is about read-after-write consistency of this one endpoint,
+ * not a security control by itself).
  */
 @Service
 public class UserService {
@@ -73,6 +88,7 @@ public class UserService {
                 .map(userMapper::toSummary);
     }
 
+    @Cacheable(cacheNames = USERS_CACHE, key = "#caller.organizationId() + ':' + #id")
     @Transactional(readOnly = true)
     public UserSummaryResponse getById(Long id, AuthenticatedPrincipal caller) {
         return userRepository.findByIdAndOrganizationId(id, caller.organizationId())
@@ -92,6 +108,7 @@ public class UserService {
      * full lifetime after being deactivated (a gap found and closed
      * during Phase 5; see {@code AuthService.refresh}'s Javadoc).
      */
+    @CacheEvict(cacheNames = USERS_CACHE, key = "#caller.organizationId() + ':' + #id")
     @Transactional
     public UserSummaryResponse setActive(Long id, boolean active, AuthenticatedPrincipal caller) {
         if (id.equals(caller.userId())) {
@@ -114,6 +131,7 @@ public class UserService {
      * window rather than accepting the full access-token lifetime of
      * delay on top of it.
      */
+    @CacheEvict(cacheNames = USERS_CACHE, key = "#caller.organizationId() + ':' + #id")
     @Transactional
     public UserSummaryResponse changeRole(Long id, Role newRole, AuthenticatedPrincipal caller) {
         rejectSuperAdmin(newRole);

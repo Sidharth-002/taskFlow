@@ -11,7 +11,7 @@ CI-backed delivery pipeline.
 The backend is the primary focus of this project. The frontend (React +
 TypeScript) is intentionally kept simpler.
 
-> **Status:** Phase 6 (Advanced JPA) complete. See [Development phases](#development-phases) below.
+> **Status:** Phase 7 (Redis) complete. See [Development phases](#development-phases) below.
 
 ## Project overview
 
@@ -338,8 +338,9 @@ directly.
 credential being presented/revoked, and requiring a still-valid access
 token just to log out would be user-hostile once it's already expired.
 
-**Rate limiting** on login attempts (spec Section 25) is deferred to
-Phase 7, once Redis is introduced - see [Redis](#redis).
+**Rate limiting** on login attempts (spec Section 25), and on
+register/refresh alongside it, is implemented in Phase 7 - see
+[Redis](#redis).
 
 **CSRF is disabled** for the API. CSRF matters for cookie-based session
 authentication, where a browser automatically attaches credentials to
@@ -696,8 +697,51 @@ Ticket search, built dynamic rather than as one fixed query per role
 
 ## Redis
 
-*(Implemented in Phase 7: caching for read-heavy lookups and distributed
-rate limiting for auth endpoints.)*
+Two independent uses, both added in Phase 7, sharing the one Redis
+instance (`docker-compose.yml`'s `redis` service, mapped to host port
+6380 - 6379 clashes with a locally installed Redis service the same way
+Postgres's default port did; see `.env.example`):
+
+**Caching** - read-through caching for single-record lookups that are
+read far more often than they change (`ProjectService`/`TeamService`/
+`UserService`'s `getById`). `CacheConfig` declares one shared
+`RedisCacheConfiguration` bean (10-minute TTL, `GenericJackson2JsonRedisSerializer`
+with `DefaultTyping.EVERYTHING` - see its Javadoc for why plain
+`NON_FINAL` typing silently breaks round-tripping a `record`, which is
+what every cached DTO here is), which Spring Boot's Redis cache
+autoconfiguration picks up automatically as every named cache's default.
+Each mutating method (`update`/`archive`/`deactivate`/`assignLead`/
+`setActive`/`changeRole`) evicts the entry it just changed - see each
+service's Javadoc for the exact key convention and, for `TeamService`,
+why `addMember`/`removeMember` deliberately *don't* evict (`TeamResponse`
+never exposes the member list). List/search endpoints stay uncached:
+they're already pagination-limited, and Phase 6's dynamic ticket search
+in particular would fragment the cache into one entry per filter
+combination for little benefit.
+
+**Distributed rate limiting** on the three `permitAll()` auth endpoints
+(`register`/`login`/`refresh` - spec Section 25) - distributed, not an
+in-memory counter, so the limit holds even if FlowDesk is horizontally
+scaled behind a load balancer (see `RateLimiterService`'s Javadoc for why
+an in-process counter wouldn't). A single Lua script does an atomic
+`INCR` + conditional `PEXPIRE` (only on the request that takes the count
+from 0 to 1) to implement a fixed-window counter without a race between
+two concurrent requests both trying to set the window's expiry.
+`AuthRateLimitFilter` applies it ahead of `JwtAuthenticationFilter` in the
+security filter chain, keyed by `request.getRemoteAddr()` (deliberately
+not a client-supplied header like `X-Forwarded-For` - see its Javadoc) -
+a request over the limit gets `429 Too Many Requests` with a
+`Retry-After` header and never reaches JWT parsing or (for `login`) the
+database-backed `AuthenticationManager`. Limits are configurable per
+endpoint (`app.rate-limit.{register,login,refresh}.{capacity,window}`);
+`application.yml`'s defaults are sized for real abuse resistance
+(register: 5/10 min, login: 10/min, refresh: 30/min), while
+`application-dev.yml` overrides them much higher so a developer - or this
+project's own integration test suite, which runs dozens of legitimate
+register/login calls against the same shared local Redis instance in one
+run - never trips them by accident. The limiter itself is still verified
+for real, just with its own small, deterministic values, in
+`AuthRateLimitFilterTest`.
 
 ## Kafka
 
@@ -778,8 +822,23 @@ assertions were updated for Phase 6's `Specification`-based search
 fixed per-role query methods) rather than adding a separate test class -
 the role-visibility matrix they already covered didn't change, only how
 it's expressed at the repository layer.
+- **`RateLimiterServiceTest`** (Phase 7) - the fixed-window counter
+  against real Redis: exactly `capacity` requests succeed per key within
+  the window, the next is rejected, a window reset allows more through,
+  and independent keys never share a counter.
+- **`AuthRateLimitFilterTest`** (Phase 7, MockMvc through the real
+  security filter chain) - proves the filter is actually wired in front
+  of `register`/`login`, returns `429` with a `Retry-After` header and
+  the right error code once a small, test-specific capacity
+  (`@TestPropertySource`) is exceeded, and that separate endpoints'
+  buckets don't leak into each other.
+- **`CachingIntegrationTest`** (Phase 7) - proves `getById` is a genuine
+  Redis-backed cache, not just a compiling annotation: a row changed
+  directly through the repository (bypassing the service, and therefore
+  its `@CacheEvict`) is invisible on the next `getById` until a call
+  through the service's own mutating method evicts the entry.
 
-114 tests total as of Phase 6, all passing.
+122 tests total as of Phase 7, all passing.
 
 ## Running locally
 
@@ -794,8 +853,8 @@ it's expressed at the repository layer.
 # 1. Copy environment template
 cp .env.example .env
 
-# 2. Start infrastructure (PostgreSQL for now; Redis/Kafka added in later phases)
-docker compose up -d postgres
+# 2. Start infrastructure (PostgreSQL + Redis; Kafka added in a later phase)
+docker compose up -d postgres redis
 
 # 3. Run the backend
 cd backend
@@ -809,9 +868,9 @@ curl http://localhost:8080/actuator/health
 ```
 
 > **Local port note:** the Dockerized PostgreSQL is mapped to host port
-> `5433` (not `5432`) to avoid clashing with a locally installed PostgreSQL
-> service, if one is running. Adjust `DB_PORT` in `.env` if your setup
-> differs.
+> `5433` (not `5432`), and Redis to `6380` (not `6379`), to avoid clashing
+> with locally installed PostgreSQL/Redis services, if either is running.
+> Adjust `DB_PORT`/`REDIS_PORT` in `.env` if your setup differs.
 
 > **JWT secret note:** the `dev` profile has a built-in (insecure,
 > clearly-labeled) fallback signing secret, so no setup is needed locally.
@@ -982,7 +1041,7 @@ This project is built incrementally, one phase at a time, each verified
 - [x] **Phase 4** — Ticket workflow (CRUD, transitions, comments, validation) + minimal Project/User endpoints (discovered prerequisites) + tenant isolation (brought forward from Phase 5)
 - [x] **Phase 5** — Multi-tenancy hardening (systematic cross-module test suite) + full Team management + User deactivation/role-change + a real security gap found and fixed (deactivated users could keep refreshing sessions)
 - [x] **Phase 6** — Advanced JPA (`JpaSpecificationExecutor` dynamic ticket search, `@EntityGraph` N+1 fix, enriched list projection, formalized optimistic-locking concurrency test)
-- [ ] Phase 7 — Redis (caching, rate limiting)
+- [x] **Phase 7** — Redis (read-through caching for Project/Team/User lookups, distributed fixed-window rate limiting on auth endpoints)
 - [ ] Phase 8 — Kafka (domain events, notification/audit consumers)
 - [ ] Phase 9 — Dashboard + scheduled jobs
 - [ ] Phase 10 — Testing (unit, controller, integration, Testcontainers)

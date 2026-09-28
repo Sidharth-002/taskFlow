@@ -1,5 +1,7 @@
 package com.flowdesk.project.service;
 
+import static com.flowdesk.common.config.CacheConfig.PROJECTS_CACHE;
+
 import com.flowdesk.common.exception.ResourceNotFoundException;
 import com.flowdesk.common.exception.TenantAccessDeniedException;
 import com.flowdesk.organization.entity.Organization;
@@ -12,6 +14,8 @@ import com.flowdesk.project.entity.ProjectStatus;
 import com.flowdesk.project.mapper.ProjectMapper;
 import com.flowdesk.project.repository.ProjectRepository;
 import com.flowdesk.security.AuthenticatedPrincipal;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,6 +26,17 @@ import org.springframework.transaction.annotation.Transactional;
  * roles ({@code @PreAuthorize} in {@code ProjectController} excludes
  * {@code SUPER_ADMIN}), so {@code caller.organizationId()} is always
  * non-null by the time it reaches this class.
+ *
+ * <p>{@code getById} is cached (Phase 7, see {@code CacheConfig}) - a
+ * single project is read far more often (every ticket create/update
+ * references one) than it's written. The cache key includes
+ * {@code organizationId} alongside {@code id}, even though ticket IDs are
+ * already globally unique, specifically so a cross-organization
+ * {@code TenantAccessDeniedException} is never served from - or, worse,
+ * masks - another organization's cached entry. {@code list} stays
+ * uncached: it's already pagination-limited and cheap, and caching a
+ * whole page per (organization, page, sort) combination would fragment
+ * the cache for little benefit.
  */
 @Service
 public class ProjectService {
@@ -50,6 +65,7 @@ public class ProjectService {
         return projectMapper.toResponse(projectRepository.save(project));
     }
 
+    @Cacheable(cacheNames = PROJECTS_CACHE, key = "#caller.organizationId() + ':' + #id")
     @Transactional(readOnly = true)
     public ProjectResponse getById(Long id, AuthenticatedPrincipal caller) {
         return projectMapper.toResponse(loadTenantScoped(id, caller));
@@ -61,6 +77,7 @@ public class ProjectService {
                 .map(projectMapper::toResponse);
     }
 
+    @CacheEvict(cacheNames = PROJECTS_CACHE, key = "#caller.organizationId() + ':' + #id")
     @Transactional
     public ProjectResponse update(Long id, UpdateProjectRequest request, AuthenticatedPrincipal caller) {
         Project project = loadTenantScoped(id, caller);
@@ -73,6 +90,7 @@ public class ProjectService {
         return projectMapper.toResponse(projectRepository.saveAndFlush(project));
     }
 
+    @CacheEvict(cacheNames = PROJECTS_CACHE, key = "#caller.organizationId() + ':' + #id")
     @Transactional
     public ProjectResponse archive(Long id, AuthenticatedPrincipal caller) {
         Project project = loadTenantScoped(id, caller);

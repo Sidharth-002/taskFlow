@@ -19,10 +19,28 @@ services:
       timeout: 5s
       retries: 10
 
-  # Redis and Kafka are added in Phases 7 and 8 respectively, once the
-  # application code that actually depends on them exists. Standing up
-  # infrastructure ahead of the code that uses it makes it impossible to
-  # tell, by looking at this file's history, which phase introduced what.
+  redis:
+    image: redis:7-alpine
+    container_name: flowdesk-redis
+    restart: unless-stopped
+    ports:
+      # Host port defaults to 6380 to avoid clashing with a locally
+      # installed Redis service that may already own 6379 (same reasoning
+      # as Postgres's 5433 above).
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - flowdesk-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Kafka is added in Phase 8, once the application code that actually
+  # depends on it exists. Standing up infrastructure ahead of the code
+  # that uses it makes it impossible to tell, by looking at this file's
+  # history, which phase introduced what.
 
 volumes:
   flowdesk-postgres-data:
+  flowdesk-redis-data:
