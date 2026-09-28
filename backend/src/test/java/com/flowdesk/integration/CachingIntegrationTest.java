@@ -14,14 +14,13 @@ import com.flowdesk.team.dto.TeamResponse;
 import com.flowdesk.team.entity.Team;
 import com.flowdesk.team.repository.TeamRepository;
 import com.flowdesk.team.service.TeamService;
+import com.flowdesk.testsupport.IntegrationTest;
 import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
 import com.flowdesk.user.repository.UserRepository;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -40,8 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  * that {@code new}s up the service directly would never exercise them at
  * all.
  */
-@SpringBootTest
-@ActiveProfiles("dev")
+@IntegrationTest
 class CachingIntegrationTest {
 
     @Autowired

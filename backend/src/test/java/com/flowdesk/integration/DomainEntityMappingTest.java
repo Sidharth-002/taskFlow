@@ -10,6 +10,7 @@ import com.flowdesk.project.entity.ProjectStatus;
 import com.flowdesk.project.repository.ProjectRepository;
 import com.flowdesk.team.entity.Team;
 import com.flowdesk.team.repository.TeamRepository;
+import com.flowdesk.testsupport.IntegrationTest;
 import com.flowdesk.ticket.entity.Ticket;
 import com.flowdesk.ticket.entity.TicketPriority;
 import com.flowdesk.ticket.entity.TicketStatus;
@@ -22,9 +23,7 @@ import jakarta.persistence.PersistenceContext;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -34,12 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
  * keys) are actually enforced by the database rather than only assumed
  * from the Java model.
  *
- * <p>Runs against the docker-compose PostgreSQL instance (requires
- * {@code docker compose up -d postgres}); replaced by a Testcontainers-
- * backed base class once Phase 10 sets that infrastructure up.
+ * <p>Runs against an ephemeral Testcontainers PostgreSQL instance (Phase
+ * 10) - no local Docker state or manual setup required.
  */
-@SpringBootTest
-@ActiveProfiles("dev")
+@IntegrationTest
 @Transactional // each test rolls back, so tests don't leak data into each other
 class DomainEntityMappingTest {
 

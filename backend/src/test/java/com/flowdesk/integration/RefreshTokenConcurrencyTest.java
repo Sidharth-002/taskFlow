@@ -6,6 +6,7 @@ import com.flowdesk.auth.entity.RefreshToken;
 import com.flowdesk.auth.repository.RefreshTokenRepository;
 import com.flowdesk.organization.entity.Organization;
 import com.flowdesk.organization.repository.OrganizationRepository;
+import com.flowdesk.testsupport.IntegrationTest;
 import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
 import com.flowdesk.user.repository.UserRepository;
@@ -19,9 +20,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -38,8 +37,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * handful of rows this leaves behind are harmless test data, isolated by
  * a random organization/user created just for this test.
  */
-@SpringBootTest
-@ActiveProfiles("dev")
+@IntegrationTest
 class RefreshTokenConcurrencyTest {
 
     @Autowired

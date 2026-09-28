@@ -2,24 +2,22 @@ package com.flowdesk.ratelimit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.flowdesk.testsupport.IntegrationTest;
 import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Exercises {@link RateLimiterService} directly against real Redis (via
- * the same docker-compose instance the rest of this project's integration
- * tests use) - a fixed-window counter's correctness lives entirely in
- * whether {@code INCR}/{@code PEXPIRE} behave atomically together, which a
- * mocked {@code RedisTemplate} couldn't meaningfully verify.
+ * Exercises {@link RateLimiterService} directly against a real (ephemeral
+ * Testcontainers) Redis instance - a fixed-window counter's correctness
+ * lives entirely in whether {@code INCR}/{@code PEXPIRE} behave atomically
+ * together, which a mocked {@code RedisTemplate} couldn't meaningfully
+ * verify.
  */
-@SpringBootTest
-@ActiveProfiles("dev")
+@IntegrationTest
 class RateLimiterServiceTest {
 
     @Autowired

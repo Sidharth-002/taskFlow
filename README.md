@@ -11,7 +11,7 @@ CI-backed delivery pipeline.
 The backend is the primary focus of this project. The frontend (React +
 TypeScript) is intentionally kept simpler.
 
-> **Status:** Phase 9 (Dashboard + scheduled jobs) complete. See [Development phases](#development-phases) below.
+> **Status:** Phase 10 (Testing: Testcontainers) complete. See [Development phases](#development-phases) below.
 
 ## Project overview
 
@@ -850,13 +850,41 @@ follows:
 
 ## Testing
 
-Formal test infrastructure (Testcontainers, a dedicated `test` profile,
-CI integration) is built out in Phase 10. Until then, tests run against
-the same docker-compose PostgreSQL instance developers use locally
-(`docker compose up -d postgres`), on the `dev` profile - but meaningful
-test coverage is added incrementally alongside each phase rather than
-deferred entirely, per the spec's own guidance to verify every phase
-before moving on:
+**Every integration test runs against ephemeral Testcontainers**
+(Postgres, Kafka, Redis - `testsupport.ContainersConfig`), not the shared
+`docker-compose.yml` services a developer runs locally with
+`./mvnw spring-boot:run`. `mvn test`/`mvn verify` needs no `docker compose
+up` first and no local Docker state at all beyond a running Docker
+daemon - `@ServiceConnection` on each container bean wires
+`spring.datasource.*`/`spring.kafka.bootstrap-servers`/
+`spring.data.redis.*` automatically, at whatever host port Docker
+assigns, onto its own `test` profile (`application-test.yml`) distinct
+from `dev`'s.
+
+Two composed annotations (`testsupport.IntegrationTest` and
+`WebIntegrationTest`, which adds `@AutoConfigureMockMvc`) replace the
+`@SpringBootTest @ActiveProfiles("dev")` pair every integration test used
+through Phase 9 - a one-line swap per class, since
+`@Import(ContainersConfig.class)` and `@ActiveProfiles("test")` now live
+in the annotation instead of being repeated in every file. Most test
+classes share one cached Spring context (and therefore one already-running
+set of containers) for the whole run, since they import the identical
+configuration; a class with its own `@TestPropertySource`
+(`AuthRateLimitFilterTest`) gets a different context key and its own
+fresh containers - slower for that one class, but no different a
+trade-off than before.
+
+**Why this over the shared dev services:** three real problems this
+project had actually hit became structural non-issues once every test run
+gets its own fresh containers - state (Redis rate-limit counters, cache
+entries, leftover rows) leaking between separate `mvn verify` invocations,
+a developer needing to remember `docker compose up` before running tests
+at all, and a CI pipeline (Phase 11) needing that same manual step
+reproduced. Meaningful test coverage was still added incrementally
+alongside each phase rather than deferred entirely, per the spec's own
+guidance to verify every phase before moving on - Phase 10's job was
+making the *infrastructure* those tests already relied on hermetic and
+reproducible, not writing new test coverage for its own sake:
 
 - **`AuthServiceTest`** (JUnit 5 + Mockito) - unit tests with every
   collaborator mocked: registration, login delegation to
@@ -970,7 +998,15 @@ it's expressed at the repository layer.
   `Notification` and one `AuditLog` entry, and that running the job again
   does *not* re-notify for the same ticket.
 
-141 tests total as of Phase 9, all passing.
+No new test classes were added in Phase 10 - its job was making every
+existing integration test's infrastructure hermetic
+(`testsupport.ContainersConfig`/`IntegrationTest`/`WebIntegrationTest`),
+not adding new coverage. All 141 pre-existing tests were verified to
+still pass identically against Testcontainers, including a full run with
+`docker compose down` first - proving none of them secretly still
+depended on the shared dev services.
+
+141 tests total as of Phase 10, all passing.
 
 ## Running locally
 
@@ -1018,6 +1054,11 @@ curl http://localhost:8080/actuator/health
 cd backend
 ./mvnw test
 ```
+
+No `docker compose up` needed first (Phase 10) - every integration test
+runs against its own ephemeral Testcontainers Postgres/Kafka/Redis. The
+only prerequisite is a running Docker daemon, since Testcontainers still
+needs one to start those containers in.
 
 ## API documentation
 
@@ -1178,7 +1219,7 @@ This project is built incrementally, one phase at a time, each verified
 - [x] **Phase 7** — Redis (read-through caching for Project/Team/User lookups, distributed fixed-window rate limiting on auth endpoints)
 - [x] **Phase 8** — Kafka (`ticket-events` topic, publish-then-relay-after-commit, independent notification/audit consumer groups)
 - [x] **Phase 9** — Dashboard (`GET /api/dashboard/summary`, role-scoped, Redis-cached) + scheduled jobs (overdue ticket detection via a domain event, expired refresh token cleanup)
-- [ ] Phase 10 — Testing (unit, controller, integration, Testcontainers)
+- [x] **Phase 10** — Testing (every integration test migrated to ephemeral Testcontainers Postgres/Kafka/Redis, a real `test` profile, hermetic - no `docker compose up` needed to run the suite)
 - [ ] Phase 11 — Production readiness (Actuator, logging, correlation IDs, CI, OpenAPI)
 - [ ] Phase 12 — React frontend
 

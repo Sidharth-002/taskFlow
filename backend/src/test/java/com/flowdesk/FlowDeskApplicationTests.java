@@ -1,23 +1,17 @@
 package com.flowdesk;
 
+import com.flowdesk.testsupport.IntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Verifies the Spring application context loads successfully.
- *
- * <p>Requires a reachable PostgreSQL instance matching the "dev" profile
- * (e.g. via {@code docker compose up -d postgres}), since {@code ddl-auto}
- * is intentionally set to {@code validate} rather than relying on an
- * in-memory database that would mask real schema/mapping mismatches.
- *
- * <p>This is replaced by a Testcontainers-backed base test class in
- * Phase 10, which removes the dependency on a developer's local Docker
- * state and makes the suite runnable in CI without prior setup.
+ * Verifies the Spring application context loads successfully, against the
+ * ephemeral Postgres/Kafka/Redis containers {@code @IntegrationTest} spins
+ * up (Phase 10) - not a developer's local Docker state, and runnable in
+ * CI without any prior setup. {@code ddl-auto} is intentionally
+ * {@code validate} rather than relying on an in-memory database that
+ * would mask real schema/mapping mismatches.
  */
-@SpringBootTest
-@ActiveProfiles("dev")
+@IntegrationTest
 class FlowDeskApplicationTests {
 
     @Test

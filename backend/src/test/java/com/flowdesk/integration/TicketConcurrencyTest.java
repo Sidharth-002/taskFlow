@@ -10,6 +10,7 @@ import com.flowdesk.project.repository.ProjectRepository;
 import com.flowdesk.ticket.entity.Ticket;
 import com.flowdesk.ticket.entity.TicketPriority;
 import com.flowdesk.ticket.entity.TicketStatus;
+import com.flowdesk.testsupport.IntegrationTest;
 import com.flowdesk.ticket.repository.TicketRepository;
 import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
@@ -23,9 +24,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -44,8 +43,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * connections. Left-over rows are harmless, isolated by a random
  * organization/users created just for this test.
  */
-@SpringBootTest
-@ActiveProfiles("dev")
+@IntegrationTest
 class TicketConcurrencyTest {
 
     @Autowired

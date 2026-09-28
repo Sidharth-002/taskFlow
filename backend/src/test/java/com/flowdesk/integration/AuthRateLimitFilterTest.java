@@ -6,17 +6,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flowdesk.testsupport.WebIntegrationTest;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,21 +27,19 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Overrides {@code app.rate-limit.*} to small, deterministic values via
  * {@code @TestPropertySource} - the defaults active for every other
- * integration test (see {@code application-dev.yml}) are deliberately too
- * generous to hit in a normal test run, so this class gets its own, much
- * lower limits (and, since that makes its configuration unique, its own
- * Spring context - a small extra startup cost worth paying for a
- * deterministic test).
+ * integration test (see {@code application-test.yml}) are deliberately
+ * too generous to hit in a normal test run, so this class gets its own,
+ * much lower limits (and, since that makes its configuration unique, its
+ * own Spring context and therefore its own fresh Testcontainers - a small
+ * extra startup cost worth paying for a deterministic test).
  *
- * <p>Redis state from prior runs is flushed before each test: unlike this
- * project's other integration tests, a rate-limit counter isn't rolled
- * back by {@code @Transactional} (it lives in Redis, not the JPA
- * transaction), so without this a previous run's leftover count could
- * make an assertion here pass or fail for the wrong reason.
+ * <p>Redis state is flushed before each test: a rate-limit counter isn't
+ * rolled back by {@code @Transactional} (it lives in Redis, not the JPA
+ * transaction), so without this, one test method's counter could bleed
+ * into the next within the same test class run and make an assertion here
+ * pass or fail for the wrong reason.
  */
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("dev")
+@WebIntegrationTest
 @TestPropertySource(properties = {
         "app.rate-limit.register.capacity=2",
         "app.rate-limit.register.window=10s",
