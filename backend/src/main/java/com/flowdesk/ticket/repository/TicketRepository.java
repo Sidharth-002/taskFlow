@@ -1,5 +1,6 @@
-package com.flowdesk.ticket;
+package com.flowdesk.ticket.repository;
 
+import com.flowdesk.ticket.entity.Ticket;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**

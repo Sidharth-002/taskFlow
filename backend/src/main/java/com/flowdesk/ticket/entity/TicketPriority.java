@@ -1,4 +1,4 @@
-package com.flowdesk.ticket;
+package com.flowdesk.ticket.entity;
 
 public enum TicketPriority {
     LOW,

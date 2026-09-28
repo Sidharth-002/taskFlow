@@ -1,8 +1,8 @@
-package com.flowdesk.team;
+package com.flowdesk.team.entity;
 
-import com.flowdesk.common.BaseEntity;
-import com.flowdesk.organization.Organization;
-import com.flowdesk.user.User;
+import com.flowdesk.common.entity.BaseEntity;
+import com.flowdesk.organization.entity.Organization;
+import com.flowdesk.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;

@@ -106,9 +106,18 @@ later if a genuine scaling reason emerged.
 | `config` | Cross-cutting Spring configuration (security, cache, Kafka, etc.) |
 | `security` | JWT filter, authentication/authorization infrastructure |
 
-Each module is expected to separate `controller` / `service` / `repository`
-/ `entity` / `dto` / `mapper` where the module actually needs that layer —
-layers are not created just for symmetry.
+Each module separates `entity` / `repository` / `service` / `controller` /
+`dto` / `mapper` / `exception` into their own sub-packages — but only the
+layers that module actually needs; a layer isn't created just for
+symmetry with the others. As of Phase 2, every module has `entity` and
+`repository`:
+
+```
+com.flowdesk.ticket
+├── entity/        Ticket, TicketStatus, TicketPriority
+└── repository/    TicketRepository
+    (service/, controller/, dto/, mapper/ land here in Phase 4)
+```
 
 ## Multi-tenancy
 

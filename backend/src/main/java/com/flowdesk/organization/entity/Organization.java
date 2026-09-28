@@ -1,6 +1,6 @@
-package com.flowdesk.organization;
+package com.flowdesk.organization.entity;
 
-import com.flowdesk.common.BaseEntity;
+import com.flowdesk.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;

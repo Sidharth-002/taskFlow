@@ -1,10 +1,10 @@
-package com.flowdesk.ticket;
+package com.flowdesk.ticket.entity;
 
-import com.flowdesk.common.BaseEntity;
-import com.flowdesk.organization.Organization;
-import com.flowdesk.project.Project;
-import com.flowdesk.team.Team;
-import com.flowdesk.user.User;
+import com.flowdesk.common.entity.BaseEntity;
+import com.flowdesk.organization.entity.Organization;
+import com.flowdesk.project.entity.Project;
+import com.flowdesk.team.entity.Team;
+import com.flowdesk.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

@@ -1,22 +1,22 @@
-package com.flowdesk.domain;
+package com.flowdesk.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.flowdesk.organization.Organization;
-import com.flowdesk.organization.OrganizationRepository;
-import com.flowdesk.project.Project;
-import com.flowdesk.project.ProjectRepository;
-import com.flowdesk.project.ProjectStatus;
-import com.flowdesk.team.Team;
-import com.flowdesk.team.TeamRepository;
-import com.flowdesk.ticket.Ticket;
-import com.flowdesk.ticket.TicketPriority;
-import com.flowdesk.ticket.TicketRepository;
-import com.flowdesk.ticket.TicketStatus;
-import com.flowdesk.user.Role;
-import com.flowdesk.user.User;
-import com.flowdesk.user.UserRepository;
+import com.flowdesk.organization.entity.Organization;
+import com.flowdesk.organization.repository.OrganizationRepository;
+import com.flowdesk.project.entity.Project;
+import com.flowdesk.project.entity.ProjectStatus;
+import com.flowdesk.project.repository.ProjectRepository;
+import com.flowdesk.team.entity.Team;
+import com.flowdesk.team.repository.TeamRepository;
+import com.flowdesk.ticket.entity.Ticket;
+import com.flowdesk.ticket.entity.TicketPriority;
+import com.flowdesk.ticket.entity.TicketStatus;
+import com.flowdesk.ticket.repository.TicketRepository;
+import com.flowdesk.user.entity.Role;
+import com.flowdesk.user.entity.User;
+import com.flowdesk.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;

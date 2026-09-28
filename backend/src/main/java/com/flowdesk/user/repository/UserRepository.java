@@ -1,5 +1,6 @@
-package com.flowdesk.user;
+package com.flowdesk.user.repository;
 
+import com.flowdesk.user.entity.User;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 

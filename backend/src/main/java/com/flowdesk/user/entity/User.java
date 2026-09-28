@@ -1,7 +1,7 @@
-package com.flowdesk.user;
+package com.flowdesk.user.entity;
 
-import com.flowdesk.common.BaseEntity;
-import com.flowdesk.organization.Organization;
+import com.flowdesk.common.entity.BaseEntity;
+import com.flowdesk.organization.entity.Organization;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

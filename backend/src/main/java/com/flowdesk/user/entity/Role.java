@@ -1,4 +1,4 @@
-package com.flowdesk.user;
+package com.flowdesk.user.entity;
 
 /**
  * The finite set of roles a user can hold within their organization.

@@ -1,4 +1,4 @@
-package com.flowdesk.ticket;
+package com.flowdesk.ticket.entity;
 
 /**
  * Ticket lifecycle state. Transitions between these are restricted by
