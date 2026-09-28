@@ -9,6 +9,23 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     show-sql: false
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+
+# Disabled entirely in prod - see config.OpenApiConfig's Javadoc. Neither
+# controller is even registered when disabled, so /v3/api-docs and
+# /swagger-ui.html 404 here regardless of SecurityConfig's permitAll rule
+# for those paths.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 management:
   endpoints:
@@ -16,7 +33,16 @@ management:
       exposure:
         include: health,info,metrics
 
+# Elastic Common Schema JSON on stdout - a real deployment's log
+# aggregator (e.g. an ELK/Elasticsearch stack) parses structured fields
+# directly instead of regex-scraping a human-readable line, and MDC
+# entries (correlationId - see shared.web.CorrelationIdFilter) are included as
+# fields automatically. Left as the default human-readable pattern in dev
+# and test, where a developer is reading logs directly in a terminal.
 logging:
+  structured:
+    format:
+      console: ecs
   level:
     com.flowdesk: INFO
     org.hibernate.SQL: WARN

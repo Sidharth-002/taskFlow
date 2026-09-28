@@ -1,0 +1,313 @@
+/* Deliberately plain CSS, no component library or utility framework -
+   consistent with this frontend being intentionally simple (see the
+   project README). */
+
+:root {
+  color-scheme: light;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-border: #d8dce1;
+  --color-text: #1c2128;
+  --color-muted: #626a73;
+  --color-primary: #2f5ed6;
+  --color-danger: #c0362c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+a {
+  color: var(--color-primary);
+}
+
+button,
+.button {
+  display: inline-block;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+input,
+select,
+textarea {
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.95rem;
+  width: 100%;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-muted);
+}
+
+.error {
+  background: #fbeaea;
+  color: var(--color-danger);
+  border: 1px solid #f0c4c1;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.loading {
+  color: var(--color-muted);
+}
+
+/* --- Nav --- */
+
+.nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nav-brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.nav-bar nav {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: var(--color-muted);
+}
+
+.nav-user button {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
+/* --- Auth pages --- */
+
+.auth-page {
+  display: flex;
+  justify-content: center;
+  padding-top: 48px;
+}
+
+.auth-form {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 32px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.auth-form button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* --- Generic page layout --- */
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.filter {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+}
+
+.filter select {
+  width: auto;
+}
+
+/* --- Ticket table --- */
+
+.ticket-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ticket-table th,
+.ticket-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  background: #e6eaf0;
+}
+
+.status-open { background: #e0ecff; }
+.status-in_progress { background: #fff2cc; }
+.status-waiting { background: #f0e6ff; }
+.status-resolved { background: #dff5e3; }
+.status-closed { background: #e6e6e6; }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* --- Forms --- */
+
+.ticket-form,
+.inline-create-project {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 480px;
+}
+
+.inline-create-project {
+  margin-bottom: 16px;
+}
+
+.inline-create-project input {
+  margin: 8px 0;
+}
+
+/* --- Ticket detail --- */
+
+.ticket-fields {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 4px 12px;
+  margin-bottom: 24px;
+}
+
+.ticket-fields dt {
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.ticket-fields dd {
+  margin: 0;
+}
+
+.status-editor {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.status-editor label {
+  margin-bottom: 0;
+}
+
+.status-editor select {
+  width: auto;
+}
+
+.status-editor small {
+  flex-basis: 100%;
+  color: var(--color-muted);
+}
+
+.comments ul {
+  list-style: none;
+  padding: 0;
+}
+
+.comments li {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.timestamp {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  margin-left: 8px;
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 480px;
+}
+
+.comment-form button {
+  align-self: flex-start;
+}
+
+/* --- Notifications --- */
+
+.notification-list {
+  list-style: none;
+  padding: 0;
+}
+
+.notification-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.notification-list li.unread {
+  border-left: 4px solid var(--color-primary);
+}
