@@ -2,6 +2,7 @@ package com.flowdesk;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /**
  * Entry point for the FlowDesk backend.
@@ -14,6 +15,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * rationale behind this choice over a microservices split.
  */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class FlowDeskApplication {
 
     public static void main(String[] args) {

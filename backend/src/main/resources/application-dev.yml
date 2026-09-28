@@ -11,6 +11,13 @@ spring:
   jpa:
     show-sql: true
 
+app:
+  jwt:
+    # Dev-only fallback so the app runs with zero setup; never used in
+    # prod (no default there - see application-prod.yml). Deliberately
+    # not a "real-looking" secret so it can't be mistaken for one.
+    secret: ${JWT_SECRET:dev-only-insecure-jwt-signing-secret-do-not-use-in-prod}
+
 management:
   endpoints:
     web:
