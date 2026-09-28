@@ -11,7 +11,7 @@ CI-backed delivery pipeline.
 The backend is the primary focus of this project. The frontend (React +
 TypeScript) is intentionally kept simpler.
 
-> **Status:** Phase 1 (Project Setup) complete. See [Development phases](#development-phases) below.
+> **Status:** Phase 2 (Core Domain) complete. See [Development phases](#development-phases) below.
 
 ## Project overview
 
@@ -29,6 +29,7 @@ authorized by role, scoped to their own organization's data.
 - Spring Cache, Spring AOP, Spring Actuator, Spring Kafka
 - PostgreSQL 16, Flyway
 - Redis
+- Lombok
 - Maven (via Maven Wrapper)
 
 **Frontend** *(added in Phase 12)*
@@ -133,12 +134,124 @@ tokens).
 
 ## Database schema
 
-*(Populated as entities are introduced in Phase 2 onward.)*
+```mermaid
+erDiagram
+    ORGANIZATION ||--o{ USER : "has (nullable for SUPER_ADMIN)"
+    ORGANIZATION ||--o{ TEAM : has
+    ORGANIZATION ||--o{ PROJECT : has
+    ORGANIZATION ||--o{ TICKET : has
+    PROJECT ||--o{ TICKET : contains
+    TEAM ||--o{ TICKET : "assigned to (nullable)"
+    TEAM }o--o{ USER : "members (team_members)"
+    USER ||--o| TEAM : "leads (nullable)"
+    USER ||--o{ TICKET : "creates (created_by)"
+    USER ||--o{ TICKET : "assigned (assigned_to, nullable)"
+
+    ORGANIZATION {
+        bigint id PK
+        varchar name
+        boolean is_active
+    }
+    USER {
+        bigint id PK
+        bigint organization_id FK "nullable"
+        varchar email UK
+        varchar password_hash
+        varchar first_name
+        varchar last_name
+        varchar role
+        boolean is_active
+    }
+    TEAM {
+        bigint id PK
+        bigint organization_id FK
+        varchar name
+        bigint team_lead_id FK "nullable, -> users"
+        boolean is_active
+    }
+    PROJECT {
+        bigint id PK
+        bigint organization_id FK
+        varchar name
+        varchar status
+    }
+    TICKET {
+        bigint id PK
+        bigint organization_id FK "denormalized, see note below"
+        bigint project_id FK
+        bigint team_id FK "nullable"
+        bigint created_by FK
+        bigint assigned_to FK "nullable"
+        varchar title
+        text description
+        varchar status
+        varchar priority
+        timestamptz due_date
+        bigint version
+    }
+```
+
+Migrations: `backend/src/main/resources/db/migration/V1__create_organizations.sql`
+through `V6__create_tickets.sql`.
+
+### Schema design decisions
+
+- **`organization_id` is nullable on `users`.** `SUPER_ADMIN` accounts are
+  platform-level — they manage organizations themselves rather than
+  belonging to one — so they're the only role without an organization.
+  Every other role always has one.
+- **Email is unique platform-wide**, not per-organization, so login can
+  look a user up by email alone without first asking which organization
+  they belong to.
+- **`tickets.organization_id` is denormalized** — a ticket is already
+  transitively scoped to an organization via `project.organization`, but
+  storing it directly avoids joining through `projects` on every single
+  tenant-scoped query and filter (status/priority/team/assignee — see
+  Section 15/16 of the spec). The tradeoff, enforced in the service
+  layer once ticket mutation exists (Phase 4), is that
+  `ticket.organization` and `ticket.project.organization` must always
+  agree.
+- **`team_members` is a plain join table**, not a dedicated entity.
+  Membership carries no attributes of its own (no joined-at timestamp,
+  no per-team role), so `@ManyToMany` is enough — a `TeamMember` entity
+  would be an abstraction with nothing to hold.
+- **Indexes** beyond the primary keys: every FK column tenant-scoped
+  tables use for filtering gets its own index (`organization_id`,
+  `project_id`, `team_id`, `assigned_to`, `status`, `priority`,
+  `created_at` on `tickets`), since Postgres does not automatically
+  index foreign key columns. Two composite indexes
+  (`organization_id, status` and `organization_id, created_at desc`)
+  match the two query shapes every ticket list actually uses: scoped to
+  one organization, then filtered by status or sorted by recency.
 
 ## JPA / Hibernate
 
-*(Documented as N+1 prevention, optimistic locking, and transaction
-boundaries are introduced in Phases 2, 4, and 6.)*
+- **Base entity + auditing.** All entities extend `common.BaseEntity`
+  (`@MappedSuperclass`), which supplies the identity-strategy primary key
+  and `createdAt`/`updatedAt` timestamps via Spring Data JPA auditing
+  (`@EnableJpaAuditing` in `config.JpaAuditingConfig`) rather than being
+  set manually in service code.
+- **Dirty checking.** `DomainEntityMappingTest.ticketVersionIncrementsOnUpdate_dirtyCheckingDemonstration`
+  mutates a managed `Ticket` with a plain setter and never calls
+  `repository.save()` again — Hibernate detects the change against the
+  persistence context's loaded snapshot and issues the `UPDATE` at flush
+  time on its own.
+- **Lazy loading by default.** Every `@ManyToOne`/`@ManyToMany`
+  association is explicitly `FetchType.LAZY`. Combined with
+  `spring.jpa.open-in-view: false` (set in Phase 1), an association is
+  never loaded outside of an explicit transactional service method —
+  there's no view-layer fallback that would silently trigger extra
+  queries or fail with `LazyInitializationException` deep in a
+  serializer.
+- **Optimistic locking.** `Ticket.version` (`@Version`) is in place now;
+  the behavioral guarantee (a stale concurrent write raising
+  `OptimisticLockException`) is exercised properly once ticket mutation
+  exists as a service operation (Phase 6) — Phase 2 only confirms the
+  column/field is correctly wired up and increments.
+- **N+1 prevention** is a query-shape concern (list endpoints, filters,
+  projections) rather than a mapping concern, so it's addressed where
+  those queries are actually written — ticket listing/filtering in
+  Phase 6.
 
 ## Redis
 
@@ -230,13 +343,25 @@ contract independently of persistence models, prevent entity leakage
 (passwords, refresh tokens, internal fields), and avoid Jackson
 serialization issues from lazy-loaded JPA associations.
 
+**Why auto-increment bigint IDs instead of UUIDs?** Tenant isolation is
+enforced server-side regardless of whether an ID is guessable, so UUIDs
+would add index/storage overhead and uglier debugging without closing any
+actual security gap here. Simple `IDENTITY` columns keep migrations,
+joins, and JPQL easier to read — appropriate for this project's scale.
+
+**Why is `organization_id` nullable on `users`?** Only `SUPER_ADMIN`
+accounts need this: they manage organizations themselves (per their
+permission set) and aren't scoped to one. Every other role always has an
+organization. See [Database schema](#database-schema) for the full
+reasoning.
+
 ## Development phases
 
 This project is built incrementally, one phase at a time, each verified
 (build, tests, boot, self-review) before moving to the next:
 
 - [x] **Phase 1** — Project setup (Spring Boot, Maven, PostgreSQL, Flyway, Docker, health endpoint)
-- [ ] Phase 2 — Core domain (Organization, User, Team, Project, Ticket)
+- [x] **Phase 2** — Core domain (Organization, User, Team, Project, Ticket)
 - [ ] Phase 3 — Authentication (JWT, refresh tokens, BCrypt, Spring Security)
 - [ ] Phase 4 — Ticket workflow (CRUD, transitions, comments, validation)
 - [ ] Phase 5 — Multi-tenancy enforcement
