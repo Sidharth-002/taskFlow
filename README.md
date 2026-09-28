@@ -11,7 +11,7 @@ CI-backed delivery pipeline.
 The backend is the primary focus of this project. The frontend (React +
 TypeScript) is intentionally kept simpler.
 
-> **Status:** Phase 4 (Ticket Workflow) complete. See [Development phases](#development-phases) below.
+> **Status:** Phase 5 (Multi-Tenancy Hardening) complete. See [Development phases](#development-phases) below.
 
 ## Project overview
 
@@ -129,6 +129,14 @@ com.flowdesk.ticket
 ├── dto/           CreateTicketRequest, UpdateTicketRequest, TicketResponse
 ├── mapper/        TicketMapper
 └── exception/     InvalidTicketTransitionException
+
+com.flowdesk.team
+├── entity/        Team
+├── repository/    TeamRepository
+├── service/       TeamService
+├── controller/    TeamController
+├── dto/           CreateTeamRequest, AssignTeamLeadRequest, TeamResponse
+└── mapper/        TeamMapper
 ```
 
 ## Multi-tenancy
@@ -178,6 +186,50 @@ right alongside the tenant check, and the *same* exception/response
 (404) covers both "wrong organization" and "right organization, but not
 within your role's visibility scope" - both should look identical to a
 caller who shouldn't see the resource either way.
+
+### Phase 5: hardening and a real gap found
+
+Per the plan above, Phase 5 completed two things Phase 4 explicitly
+deferred:
+
+- **`TenantIsolationIntegrationTest`**: the spec's Section 5 guarantee
+  ("Organization A cannot access Organization B's data... enforced
+  server-side"), made into one explicit, auditable test class covering
+  every organization-scoped resource (Project, Ticket, Comment, Team,
+  User) in the same place, rather than left as incidental coverage
+  scattered across each module's own tests.
+- **Full Team management** (`team.service.TeamService`) - previously
+  only the entity/repository existed (Phase 2), with no API at all. This
+  was also the only way to make `TEAM_LEAD`'s ticket-visibility rule
+  testable through the *real* API rather than only via directly
+  constructed entities in `TicketServiceTest`'s unit tests -
+  `TeamManagementIntegrationTest.teamLead_seesTheirTeamsTickets_throughTheRealApi`
+  proves it end-to-end.
+
+**A real, previously-shipped security gap was also found and fixed:**
+`AuthService.refresh()` never actually checked `User.active`, despite the
+Phase 3 README claiming it did. A deactivated user could keep refreshing
+their session for up to `app.jwt.refresh-token-ttl` (7 days by default)
+after being deactivated - the access-token staleness trade-off
+documented under [Authentication flow](#authentication-flow) was
+supposed to be bounded by refresh re-checking active status, and it
+wasn't. Two things closed this properly, not just the missing check:
+
+1. `AuthService.refresh` now rejects a token belonging to an inactive
+   user.
+2. `UserService.setActive(id, false, ...)` and `changeRole` now
+   proactively call `AuthService.revokeAllTokensForUser`, which runs a
+   single bulk `UPDATE ... WHERE user_id = ? AND revoked = false` -
+   ending *every* outstanding session immediately (a user could
+   plausibly be logged in on several devices) rather than waiting for
+   each token to individually hit the check in (1) on its next use.
+
+Finding (1) alone would have been enough to close the hole, but relying
+solely on "the next refresh attempt will fail" leaves already-issued
+refresh tokens sitting valid in the database until someone tries to use
+them - (2) revokes them immediately instead. This bulk-update path itself
+surfaced a second, subtler bug during testing - see the `@Modifying`
+persistence-context note in [JPA / Hibernate](#jpa--hibernate).
 
 ## Authentication flow
 
@@ -235,13 +287,18 @@ an expensive per-request database lookup.
 singular - documented here rather than left as an unexplained deviation.
 
 **Trade-off this implies:** if a user is deactivated or has their role
-changed, their current access token remains valid - and thus so do their
-old permissions - until it naturally expires (`app.jwt.access-token-ttl`,
-15 minutes by default). A password change or deactivation does *not*
-retroactively revoke already-issued access tokens. Refreshing *does* hit
-the database and re-checks `User.active`, so this staleness window is
-bounded to at most one access-token lifetime and never survives a
-refresh.
+changed, their current *access token* remains valid - and thus so do
+their old permissions - until it naturally expires
+(`app.jwt.access-token-ttl`, 15 minutes by default); there's no
+per-request database check that could catch this sooner without
+reintroducing the "expensive lookup on every request" problem JWTs are
+meant to avoid. Refreshing *does* hit the database and re-checks
+`User.active`, so this staleness window is bounded to at most one
+access-token lifetime and never survives a refresh - and, as of Phase 5,
+deactivating a user or changing their role also proactively revokes every
+refresh token they currently hold (see
+[Multi-tenancy](#multi-tenancy)'s Phase 5 section), so they can't even
+ride that window out by refreshing first.
 
 **Refresh tokens** are opaque random strings (256 bits of entropy via
 `SecureRandom`), not JWTs - there's no benefit to making them
@@ -358,8 +415,36 @@ Two small, necessary additions came out of that gap:
   *not* part of the original Phase 4 scope - it was added after manual
   verification showed that registration only ever creates the first
   `ORG_ADMIN`, meaning an organization could never have a second user to
-  assign anything to. Full self-service user management (deactivate,
-  change role, search) is still deferred.
+  assign anything to. Phase 5 completed this with
+  `PATCH /api/users/{id}/active` and `PATCH /api/users/{id}/role`
+  (both `ORG_ADMIN`-only, and both reject targeting your own account -
+  an `ORG_ADMIN` can't deactivate or demote themselves and risk locking
+  the organization out entirely). Full user search is still deferred to
+  Phase 6.
+
+## Team management
+
+Built in Phase 5 - previously only the entity/repository existed
+(Phase 2), with no API at all, which also meant `TEAM_LEAD`'s
+ticket-visibility rule (above) was untestable except via directly
+constructed entities.
+
+| Action | Endpoint | Authorization |
+|---|---|---|
+| Create team | `POST /api/teams` | `ORG_ADMIN` |
+| Get / list teams | `GET /api/teams`, `GET /api/teams/{id}` | any org member |
+| Update name/description | `PUT /api/teams/{id}` | `ORG_ADMIN` |
+| Deactivate | `PATCH /api/teams/{id}/deactivate` | `ORG_ADMIN` |
+| Assign team lead | `PATCH /api/teams/{id}/lead` | `ORG_ADMIN` |
+| List members | `GET /api/teams/{id}/members` | any org member |
+| Add / remove member | `POST`/`DELETE /api/teams/{id}/members/{userId}` | `ORG_ADMIN` **or** that team's own `TEAM_LEAD` |
+
+The last row needs a row-level check, not just a role check -
+`@PreAuthorize` can express "must be `ORG_ADMIN` or `TEAM_LEAD`" but not
+"must be *this team's* lead", so `TeamService.requireCanManageMembers`
+checks `team.getTeamLead().getId().equals(caller.userId())` once the team
+is loaded - the same pattern `TicketService` uses for reassignment
+authorization.
 
 ## Database schema
 
@@ -549,6 +634,24 @@ through `V8__create_comments.sql`.
   `ObjectOptimisticLockingFailureException` to surface) inside the
   method, before the response is constructed. `TicketWorkflowIntegrationTest`
   asserts the exact post-update version as a regression check.
+- **`@Modifying` bulk updates bypass the persistence context - and can
+  serve stale cached entities back to you.** Found in Phase 5:
+  `AuthService.revokeAllTokensForUser` runs a single bulk
+  `UPDATE ... WHERE user_id = ?` (deliberately, rather than loading and
+  saving each token in a loop - see
+  [Multi-tenancy](#multi-tenancy)'s Phase 5 section). A bulk JPQL update
+  executes directly against the database and does **not** touch any
+  `RefreshToken` Java objects already managed in the current persistence
+  context, so a token loaded earlier in the same session kept its stale
+  in-memory `revoked = false` even after the row changed underneath it -
+  and a later `findByTokenHash` call returned that same stale managed
+  instance rather than the fresh row (Hibernate's first-level cache
+  takes precedence over a query's result for an already-managed entity).
+  An integration test changing a user's role and then immediately
+  attempting a refresh with their old token caught this directly: the
+  refresh wrongly succeeded. Fixed with `@Modifying(clearAutomatically = true)`,
+  which evicts the persistence context after the bulk update so
+  subsequent reads hit the database fresh.
 
 ## Redis
 
@@ -601,8 +704,29 @@ before moving on:
   ownership. Complements the unit tests by proving the HTTP/security
   wiring - status codes, `@PreAuthorize`, (de)serialization - rather than
   re-checking every business-rule permutation already covered above.
+- **`UserServiceTest`**, **`TeamServiceTest`** - self-lockout guards
+  (can't deactivate/demote yourself), `SUPER_ADMIN` rejection, tenant
+  scoping, row-level "only this team's lead" authorization for member
+  management.
+- **`TenantIsolationIntegrationTest`** - the spec's Section 5 guarantee
+  as one explicit test class: cross-organization access denied (404) for
+  every resource type - Project, Ticket, Comment, Team, User - plus that
+  `GET /api/users` never leaks another organization's users and that
+  ticket creation rejects a project ID from a different organization.
+- **`UserManagementIntegrationTest`** - the Phase 5 security-gap fix,
+  end-to-end: deactivating a user immediately kills their existing
+  refresh token *and* blocks fresh login; reactivating restores login;
+  changing role revokes existing tokens too; self-lockout and
+  `SUPER_ADMIN`-assignment are rejected; a non-admin can't deactivate
+  anyone.
+- **`TeamManagementIntegrationTest`** - full team lifecycle (create,
+  assign lead, add/remove members) through real HTTP, a `TEAM_LEAD`
+  managing their own team's members but rejected (403) for another
+  team's, and the payoff: `TEAM_LEAD` ticket visibility (Section 6)
+  proven through the real API now that a lead can actually be assigned,
+  not just constructed directly in a unit test.
 
-74 tests total as of Phase 4, all passing.
+113 tests total as of Phase 5, all passing.
 
 ## Running locally
 
@@ -776,6 +900,24 @@ fixed repository query per role; Phase 6 replaces this with a single
 dynamic query that combines role-scoping and user-supplied filters
 together via `JpaSpecificationExecutor`.
 
+**Why does deactivating a user (or changing their role) proactively
+revoke every refresh token, instead of just relying on `refresh()`
+re-checking `User.active`?** The check alone is correct but reactive - an
+already-issued refresh token sits valid in the database until someone
+next tries to use it. A user could plausibly be logged in on several
+devices; a single bulk `UPDATE` revoking all of them takes effect
+immediately, rather than waiting for each session to individually hit
+the check on its own next refresh attempt.
+
+**Why is a role change treated the same as deactivation for token
+revocation?** A role change is a permission change. Without revoking
+existing tokens, an already-issued access token keeps carrying the *old*
+role's claim until it naturally expires (see the staleness trade-off
+under [Authentication flow](#authentication-flow)), and an existing
+refresh token would still be usable too. Forcing re-authentication under
+the new role closes that window immediately instead of accepting up to a
+full access-token lifetime of stale permissions on top of it.
+
 ## Development phases
 
 This project is built incrementally, one phase at a time, each verified
@@ -785,7 +927,7 @@ This project is built incrementally, one phase at a time, each verified
 - [x] **Phase 2** — Core domain (Organization, User, Team, Project, Ticket)
 - [x] **Phase 3** — Authentication (JWT, refresh tokens, BCrypt, Spring Security)
 - [x] **Phase 4** — Ticket workflow (CRUD, transitions, comments, validation) + minimal Project/User endpoints (discovered prerequisites) + tenant isolation (brought forward from Phase 5)
-- [ ] Phase 5 — Multi-tenancy hardening (systematic cross-module testing) + full Team/User management
+- [x] **Phase 5** — Multi-tenancy hardening (systematic cross-module test suite) + full Team management + User deactivation/role-change + a real security gap found and fixed (deactivated users could keep refreshing sessions)
 - [ ] Phase 6 — Advanced JPA (pagination, specifications, projections, N+1, optimistic locking)
 - [ ] Phase 7 — Redis (caching, rate limiting)
 - [ ] Phase 8 — Kafka (domain events, notification/audit consumers)

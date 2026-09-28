@@ -1,7 +1,9 @@
 package com.flowdesk.user.controller;
 
 import com.flowdesk.security.AuthenticatedPrincipal;
+import com.flowdesk.user.dto.ChangeRoleRequest;
 import com.flowdesk.user.dto.CreateUserRequest;
+import com.flowdesk.user.dto.SetActiveRequest;
 import com.flowdesk.user.dto.UserSummaryResponse;
 import com.flowdesk.user.service.UserService;
 import jakarta.validation.Valid;
@@ -14,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,10 +24,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Read-only for now (see {@code UserService}'s Javadoc). Any authenticated
- * organization member can list/view their colleagues - needed to pick a
- * ticket assignee - but {@code SUPER_ADMIN} is excluded, same as
- * {@code ProjectController}, since it has no organization to scope to.
+ * Read endpoints are open to any authenticated organization member -
+ * needed to pick a ticket assignee - but {@code SUPER_ADMIN} is excluded
+ * throughout, same as {@code ProjectController}, since it has no
+ * organization to scope to. Every mutating endpoint is {@code ORG_ADMIN}-only.
  */
 @RestController
 @RequestMapping("/api/users")
@@ -55,5 +58,23 @@ public class UserController {
     public ResponseEntity<UserSummaryResponse> getById(
             @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPrincipal caller) {
         return ResponseEntity.ok(userService.getById(id, caller));
+    }
+
+    @PatchMapping("/{id}/active")
+    @PreAuthorize("hasRole('ORG_ADMIN')")
+    public ResponseEntity<UserSummaryResponse> setActive(
+            @PathVariable Long id,
+            @Valid @RequestBody SetActiveRequest request,
+            @AuthenticationPrincipal AuthenticatedPrincipal caller) {
+        return ResponseEntity.ok(userService.setActive(id, request.active(), caller));
+    }
+
+    @PatchMapping("/{id}/role")
+    @PreAuthorize("hasRole('ORG_ADMIN')")
+    public ResponseEntity<UserSummaryResponse> changeRole(
+            @PathVariable Long id,
+            @Valid @RequestBody ChangeRoleRequest request,
+            @AuthenticationPrincipal AuthenticatedPrincipal caller) {
+        return ResponseEntity.ok(userService.changeRole(id, request.role(), caller));
     }
 }

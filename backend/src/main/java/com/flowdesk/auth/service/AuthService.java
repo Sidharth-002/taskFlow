@@ -121,7 +121,18 @@ public class AuthService {
      * Rotates the refresh token: the presented one is revoked and a new
      * access/refresh pair is issued. A token that's missing, expired, or
      * already revoked (including one already used once before) is
-     * rejected uniformly.
+     * rejected uniformly - as is one belonging to a now-deactivated user.
+     *
+     * <p><b>Found during Phase 5 hardening:</b> this check was missing
+     * entirely until now - the README claimed refresh "re-checks
+     * {@code User.active}" (written as the intended design in Phase 3),
+     * but the code never actually did it, so a deactivated user could
+     * keep refreshing their session for up to {@code app.jwt.refresh-token-ttl}
+     * (7 days by default) after being deactivated. See
+     * {@code UserService.setActive}, which now also proactively revokes
+     * every outstanding refresh token the moment a user is deactivated,
+     * rather than relying solely on this check rejecting the next refresh
+     * attempt.
      *
      * <p>The revoke is flushed immediately (rather than left for
      * end-of-transaction commit) specifically so a concurrent rotation of
@@ -135,6 +146,10 @@ public class AuthService {
         RefreshToken token = refreshTokenRepository.findByTokenHash(hashToken(request.refreshToken()))
                 .filter(RefreshToken::isUsable)
                 .orElseThrow(() -> new InvalidRefreshTokenException("Refresh token is invalid or expired"));
+
+        if (!token.getUser().isActive()) {
+            throw new InvalidRefreshTokenException("Refresh token is invalid or expired");
+        }
 
         token.setRevoked(true);
         try {
@@ -179,6 +194,23 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> ResourceNotFoundException.of("User", userId));
         return userMapper.toSummary(user);
+    }
+
+    /**
+     * Revokes every outstanding refresh token for a user, so their access
+     * ends as soon as their current (short-lived) access token expires,
+     * instead of them being able to keep refreshing into new sessions.
+     * Called by {@code UserService} when a user is deactivated or has
+     * their role changed - both are permission-affecting changes that
+     * should end existing sessions rather than let them ride out on
+     * stale claims.
+     */
+    @Transactional
+    public void revokeAllTokensForUser(Long userId) {
+        int revoked = refreshTokenRepository.revokeAllActiveTokensForUser(userId);
+        if (revoked > 0) {
+            log.info("Revoked {} active refresh token(s) for user {}", revoked, userId);
+        }
     }
 
     private AuthResponse buildAuthResponse(User user) {

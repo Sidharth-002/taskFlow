@@ -80,6 +80,12 @@ class AuthServiceTest {
         return user;
     }
 
+    private User buildInactiveUser(Long id, Organization org) {
+        User user = buildUser(id, org);
+        user.setActive(false);
+        return user;
+    }
+
     // BaseEntity's id is generated, not settable via a public API outside
     // persistence - tests build it through reflection to simulate "as
     // returned by the repository after save" without a real database.
@@ -219,6 +225,35 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.refresh(new RefreshRequest("raced-token")))
                 .isInstanceOf(InvalidRefreshTokenException.class);
+    }
+
+    @Test
+    void refresh_deactivatedUser_throwsInvalidRefreshTokenException() {
+        // Regression test for a real gap found during Phase 5 hardening:
+        // this check was entirely missing until now (see AuthService's
+        // Javadoc on refresh()).
+        User inactiveUser = buildInactiveUser(1L, Organization.builder().name("Acme").build());
+        RefreshToken token = RefreshToken.builder()
+                .user(inactiveUser)
+                .tokenHash("hash")
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .revoked(false)
+                .build();
+        when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
+
+        assertThatThrownBy(() -> authService.refresh(new RefreshRequest("some-token")))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+
+        verify(refreshTokenRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void revokeAllTokensForUser_delegatesToBulkRepositoryUpdate() {
+        when(refreshTokenRepository.revokeAllActiveTokensForUser(42L)).thenReturn(2);
+
+        authService.revokeAllTokensForUser(42L);
+
+        verify(refreshTokenRepository).revokeAllActiveTokensForUser(42L);
     }
 
     @Test

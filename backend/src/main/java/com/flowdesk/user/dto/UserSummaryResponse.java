@@ -13,5 +13,6 @@ public record UserSummaryResponse(
         String email,
         String firstName,
         String lastName,
-        Role role) {
+        Role role,
+        boolean active) {
 }
