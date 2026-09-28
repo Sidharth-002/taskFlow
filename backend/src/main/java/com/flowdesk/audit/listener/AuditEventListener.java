@@ -7,6 +7,7 @@ import com.flowdesk.ticket.event.TicketAssignedEvent;
 import com.flowdesk.ticket.event.TicketClosedEvent;
 import com.flowdesk.ticket.event.TicketCreatedEvent;
 import com.flowdesk.ticket.event.TicketDomainEvent;
+import com.flowdesk.ticket.event.TicketOverdueEvent;
 import com.flowdesk.ticket.event.TicketStatusChangedEvent;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -44,6 +45,10 @@ public class AuditEventListener {
         } else if (event instanceof TicketCommentAddedEvent e) {
             auditService.record(e.organizationId(), e.ticketId(), "TICKET_COMMENT_ADDED", e.authorId(),
                     "Comment #%d added".formatted(e.commentId()), e.occurredAt());
+        } else if (event instanceof TicketOverdueEvent e) {
+            // No actor - system-detected, not caused by any user's action.
+            auditService.record(e.organizationId(), e.ticketId(), "TICKET_OVERDUE", null,
+                    "Ticket became overdue (was due %s)".formatted(e.dueDate()), e.occurredAt());
         }
     }
 }

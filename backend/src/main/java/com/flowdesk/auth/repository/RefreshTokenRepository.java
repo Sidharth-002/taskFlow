@@ -1,6 +1,7 @@
 package com.flowdesk.auth.repository;
 
 import com.flowdesk.auth.entity.RefreshToken;
+import java.time.Instant;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -38,4 +39,20 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Modifying(clearAutomatically = true)
     @Query("update RefreshToken t set t.revoked = true where t.user.id = :userId and t.revoked = false")
     int revokeAllActiveTokensForUser(@Param("userId") Long userId);
+
+    /**
+     * Backs {@code RefreshTokenCleanupJob} - without this, the table only
+     * ever grows: rotation (Phase 3) revokes a token but never deletes the
+     * row, and {@code revokeAllActiveTokensForUser} (Phase 5) does the
+     * same in bulk. Deletes purely by {@code expiresAt}, not
+     * {@code revoked} - a revoked-but-not-yet-expired token (the normal
+     * case, immediately after rotation) is deliberately left alone; it's
+     * harmless dead weight until its natural expiry passes, at which point
+     * a later run of this job removes it. This also means the job never
+     * needs a separate "revoked long enough ago" cutoff, just one based on
+     * a column every row already has.
+     */
+    @Modifying
+    @Query("delete from RefreshToken t where t.expiresAt < :cutoff")
+    int deleteExpiredBefore(@Param("cutoff") Instant cutoff);
 }

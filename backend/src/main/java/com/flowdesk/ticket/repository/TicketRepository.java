@@ -1,6 +1,10 @@
 package com.flowdesk.ticket.repository;
 
 import com.flowdesk.ticket.entity.Ticket;
+import com.flowdesk.ticket.entity.TicketStatus;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,6 +12,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * {@code JpaSpecificationExecutor} backs {@code TicketService.list}'s
@@ -36,4 +42,15 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     @Override
     @EntityGraph(attributePaths = {"project", "team", "createdBy", "assignedTo"})
     Page<Ticket> findAll(Specification<Ticket> spec, Pageable pageable);
+
+    /**
+     * Backs {@code OverdueTicketCheckJob} - every organization, not just
+     * one (this runs on a schedule, not on behalf of a single caller, so
+     * there's no tenant to scope by). {@code overdueNotifiedAt is null}
+     * excludes tickets the job has already published a
+     * {@code TicketOverdueEvent} for, so a ticket that's been overdue
+     * across several runs is only ever notified about once.
+     */
+    @Query("select t from Ticket t where t.dueDate < :now and t.status not in :excludedStatuses and t.overdueNotifiedAt is null")
+    List<Ticket> findOverdueAndNotYetNotified(@Param("now") Instant now, @Param("excludedStatuses") Collection<TicketStatus> excludedStatuses);
 }

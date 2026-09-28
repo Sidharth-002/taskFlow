@@ -98,6 +98,17 @@ public class Ticket extends BaseEntity {
     private Instant dueDate;
 
     /**
+     * Set once {@code OverdueTicketCheckJob} publishes a
+     * {@code TicketOverdueEvent} for this ticket, so the job doesn't
+     * re-notify on every run while it remains overdue. Cleared implicitly
+     * by nothing - if the ticket's {@code dueDate} is pushed out or it's
+     * resolved/closed, this flag is simply never consulted again for that
+     * ticket (see the job's query), not reset back to {@code null}.
+     */
+    @Column(name = "overdue_notified_at")
+    private Instant overdueNotifiedAt;
+
+    /**
      * Optimistic lock. Hibernate increments this automatically on every
      * UPDATE and includes it in the WHERE clause; a concurrent write
      * based on a stale version raises

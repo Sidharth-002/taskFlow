@@ -11,7 +11,7 @@ CI-backed delivery pipeline.
 The backend is the primary focus of this project. The frontend (React +
 TypeScript) is intentionally kept simpler.
 
-> **Status:** Phase 8 (Kafka) complete. See [Development phases](#development-phases) below.
+> **Status:** Phase 9 (Dashboard + scheduled jobs) complete. See [Development phases](#development-phases) below.
 
 ## Project overview
 
@@ -500,6 +500,7 @@ erDiagram
         varchar status
         varchar priority
         timestamptz due_date
+        timestamptz overdue_notified_at "nullable, see OverdueTicketCheckJob"
         bigint version
     }
     USER ||--o{ REFRESH_TOKEN : issues
@@ -796,6 +797,57 @@ producer side (`TicketEventKafkaRelay`) logs, rather than throws, on a
 failed send - a Kafka outage must not fail the original HTTP request,
 which has already committed successfully by the time the relay runs.
 
+## Dashboard and scheduled jobs
+
+**`GET /api/dashboard/summary`** (`ORG_ADMIN`/`TEAM_LEAD` only -
+aggregated reporting is a managerial view in this design, not something
+`AGENT`/`USER` get a version of) returns ticket counts by status and
+priority, an unassigned count, an overdue count, and tickets
+created/closed in the last 7 days - scoped by the same role-based
+visibility rule as the ticket list itself (`TicketSpecifications.visibleTo`),
+so an `ORG_ADMIN` sees the whole organization and a `TEAM_LEAD` sees only
+their own team's tickets.
+
+`DashboardService` fetches every ticket in scope as entities and
+aggregates with Java streams rather than issuing a `GROUP BY` query per
+breakdown - reasonable only because of caching (`DASHBOARD_CACHE`, its
+own 1-minute TTL, distinct from Phase 7's entity caches - see
+`CacheConfig`). Unlike those, it's never evicted on a ticket write: a
+dashboard is a snapshot by nature, and a bounded staleness window is a
+simpler trade-off than wiring eviction into every ticket mutation for a
+value nobody expects to be exactly real-time. A significantly larger
+organization would eventually need a real pre-aggregated reporting table
+instead of scanning every ticket per cache miss - a deliberate "not yet"
+at this project's scale.
+
+**Two scheduled jobs**, both plain `@Scheduled` methods
+(`config.SchedulingConfig` provides `@EnableScheduling`) that are also
+directly callable - tests invoke them directly rather than waiting on a
+real cron trigger, the same reasoning
+`AuthService.revokeAllTokensForUser` being independently callable
+follows:
+- **`ticket.job.OverdueTicketCheckJob`** (hourly by default -
+  `app.scheduling.overdue-ticket-check-cron`) finds tickets whose
+  `dueDate` has passed while still open and publishes a
+  `TicketOverdueEvent` for each - picked up by the same
+  `NotificationEventListener`/`AuditEventListener` that handle every
+  other ticket domain event (Phase 8), rather than the job writing
+  notifications/audit rows itself. `Ticket.overdueNotifiedAt` (V11
+  migration) tracks which tickets have already been published for, so a
+  ticket that's still overdue on the next run isn't re-notified.
+  `TicketOverdueEvent` is the one domain event with no human actor - it's
+  system-detected, not caused by anyone's action - so the notification it
+  generates excludes no one from its recipients.
+- **`auth.job.RefreshTokenCleanupJob`** (daily by default -
+  `app.scheduling.refresh-token-cleanup-cron`) deletes refresh token rows
+  whose `expiresAt` has passed. Without this, the table only ever grows:
+  rotation (Phase 3) and bulk revocation (Phase 5) both only ever set
+  `revoked = true`, never delete. Deletes purely by `expiresAt`, not
+  `revoked` - a revoked-but-not-yet-expired token (the normal case,
+  immediately after rotation) is left alone until its natural expiry
+  passes, avoiding the need for a separate "revoked long enough ago"
+  cutoff.
+
 ## Testing
 
 Formal test infrastructure (Testcontainers, a dedicated `test` profile,
@@ -899,8 +951,26 @@ it's expressed at the repository layer.
   relays `AFTER_COMMIT`, and a test-wrapping transaction that always
   rolls back would mean that commit, and therefore the relay, never
   happens (see the class's own Javadoc).
+- **`DashboardServiceTest`** (Phase 9) - the aggregation arithmetic in
+  isolation: status/priority breakdowns, unassigned/overdue counts, and
+  the 7-day created/closed windows, including that `RESOLVED`/`CLOSED`
+  tickets never count as overdue regardless of `dueDate`.
+- **`DashboardIntegrationTest`** (Phase 9, MockMvc) - the wiring around
+  that arithmetic: `AGENT`/`USER` get `403`, an `ORG_ADMIN` sees org-wide
+  counts, and a `TEAM_LEAD` sees only their own team's tickets - the same
+  visibility split `TeamManagementIntegrationTest` proves for the ticket
+  list itself.
+- **`OverdueTicketCheckJobTest`/`RefreshTokenCleanupJobTest`** (Phase 9) -
+  each job's query/publish logic in isolation, including that the overdue
+  job's exclusion list is exactly `RESOLVED`/`CLOSED` and that a run with
+  nothing to do publishes nothing.
+- **`OverdueTicketCheckJobIntegrationTest`** (Phase 9, real Kafka broker) -
+  calls the job directly (not via its real cron trigger - see the job's
+  Javadoc), proving a genuinely overdue ticket produces exactly one
+  `Notification` and one `AuditLog` entry, and that running the job again
+  does *not* re-notify for the same ticket.
 
-130 tests total as of Phase 8, all passing.
+141 tests total as of Phase 9, all passing.
 
 ## Running locally
 
@@ -1107,7 +1177,7 @@ This project is built incrementally, one phase at a time, each verified
 - [x] **Phase 6** — Advanced JPA (`JpaSpecificationExecutor` dynamic ticket search, `@EntityGraph` N+1 fix, enriched list projection, formalized optimistic-locking concurrency test)
 - [x] **Phase 7** — Redis (read-through caching for Project/Team/User lookups, distributed fixed-window rate limiting on auth endpoints)
 - [x] **Phase 8** — Kafka (`ticket-events` topic, publish-then-relay-after-commit, independent notification/audit consumer groups)
-- [ ] Phase 9 — Dashboard + scheduled jobs
+- [x] **Phase 9** — Dashboard (`GET /api/dashboard/summary`, role-scoped, Redis-cached) + scheduled jobs (overdue ticket detection via a domain event, expired refresh token cleanup)
 - [ ] Phase 10 — Testing (unit, controller, integration, Testcontainers)
 - [ ] Phase 11 — Production readiness (Actuator, logging, correlation IDs, CI, OpenAPI)
 - [ ] Phase 12 — React frontend

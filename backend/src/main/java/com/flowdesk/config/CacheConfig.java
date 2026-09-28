@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.time.Duration;
+import org.springframework.boot.autoconfigure.cache.RedisCacheManagerBuilderCustomizer;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,8 +46,29 @@ public class CacheConfig {
     public static final String TEAMS_CACHE = "teams";
     public static final String USERS_CACHE = "users";
 
+    /**
+     * Aggregated, expensive-to-compute reporting data (Phase 9's
+     * {@code DashboardService}) - a much shorter TTL than the entity
+     * caches above, and deliberately never evicted by
+     * {@code @CacheEvict} on any ticket mutation. A dashboard is
+     * inherently a snapshot, not a live view; a bounded staleness window
+     * (see {@code dashboardCacheManagerBuilderCustomizer}) is the accepted
+     * trade-off against wiring cache invalidation into every ticket
+     * write path for a value nobody expects to be exactly real-time.
+     */
+    public static final String DASHBOARD_CACHE = "dashboard";
+
     @Bean
     public RedisCacheConfiguration cacheConfiguration() {
+        return cacheConfiguration(Duration.ofMinutes(10));
+    }
+
+    @Bean
+    public RedisCacheManagerBuilderCustomizer dashboardCacheManagerBuilderCustomizer() {
+        return builder -> builder.withCacheConfiguration(DASHBOARD_CACHE, cacheConfiguration(Duration.ofMinutes(1)));
+    }
+
+    private RedisCacheConfiguration cacheConfiguration(Duration ttl) {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         // DefaultTyping.EVERYTHING, not NON_FINAL: every cached value here
@@ -67,7 +89,7 @@ public class CacheConfig {
                 JsonTypeInfo.As.PROPERTY);
 
         return RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(10))
+                .entryTtl(ttl)
                 .disableCachingNullValues()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair

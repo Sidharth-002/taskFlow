@@ -9,6 +9,7 @@ import com.flowdesk.ticket.entity.TicketStatus;
 import com.flowdesk.ticket.event.TicketAssignedEvent;
 import com.flowdesk.ticket.event.TicketClosedEvent;
 import com.flowdesk.ticket.event.TicketDomainEvent;
+import com.flowdesk.ticket.event.TicketOverdueEvent;
 import com.flowdesk.ticket.event.TicketStatusChangedEvent;
 import com.flowdesk.ticket.repository.TicketRepository;
 import java.util.HashSet;
@@ -55,8 +56,10 @@ public class NotificationEventListener {
             handleStatusChanged(e);
         } else if (event instanceof TicketCommentAddedEvent e) {
             handleCommentAdded(e);
+        } else if (event instanceof TicketOverdueEvent e) {
+            handleOverdue(e);
         }
-        // TicketCreatedEvent and anything else: no notification.
+        // TicketCreatedEvent: no notification.
     }
 
     private void handleAssigned(TicketAssignedEvent e) {
@@ -89,10 +92,20 @@ public class NotificationEventListener {
                 "New comment on ticket #%d".formatted(e.ticketId()));
     }
 
+    private void handleOverdue(TicketOverdueEvent e) {
+        // No actor to exclude - a system-detected overdue check, not
+        // caused by any single user's action (see the event's Javadoc).
+        notifyTicketParticipants(
+                e.ticketId(), e.organizationId(), null, NotificationType.TICKET_OVERDUE,
+                "Ticket #%d is overdue (was due %s)".formatted(e.ticketId(), e.dueDate()));
+    }
+
     /**
      * Notifies the ticket's creator and current assignee, excluding
      * whoever caused this event - a status change or comment you made
-     * yourself doesn't need to notify you about it.
+     * yourself doesn't need to notify you about it. {@code actorId} may be
+     * {@code null} (see {@link #handleOverdue}), in which case no one is
+     * excluded.
      */
     private void notifyTicketParticipants(Long ticketId, Long organizationId, Long actorId, NotificationType type, String message) {
         Ticket ticket = ticketRepository.findById(ticketId).orElse(null);

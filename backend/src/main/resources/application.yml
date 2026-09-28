@@ -83,6 +83,14 @@ app:
     refresh:
       capacity: 30
       window: 1m
+  # Cron expressions (standard 6-field Spring form: sec min hour day month
+  # weekday) for the scheduled jobs added in Phase 9 - see
+  # OverdueTicketCheckJob/RefreshTokenCleanupJob. Configurable per
+  # environment rather than hardcoded so, e.g., a staging environment
+  # could run the overdue check more often without a code change.
+  scheduling:
+    overdue-ticket-check-cron: "0 0 * * * *" # hourly, on the hour
+    refresh-token-cleanup-cron: "0 0 3 * * *" # daily at 03:00
 
 management:
   endpoints:
