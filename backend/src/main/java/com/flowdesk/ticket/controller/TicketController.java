@@ -2,8 +2,12 @@ package com.flowdesk.ticket.controller;
 
 import com.flowdesk.security.AuthenticatedPrincipal;
 import com.flowdesk.ticket.dto.CreateTicketRequest;
+import com.flowdesk.ticket.dto.TicketListItemResponse;
 import com.flowdesk.ticket.dto.TicketResponse;
+import com.flowdesk.ticket.dto.TicketSearchCriteria;
 import com.flowdesk.ticket.dto.UpdateTicketRequest;
+import com.flowdesk.ticket.entity.TicketPriority;
+import com.flowdesk.ticket.entity.TicketStatus;
 import com.flowdesk.ticket.service.TicketService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -22,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -60,10 +65,17 @@ public class TicketController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<TicketResponse>> list(
+    public ResponseEntity<Page<TicketListItemResponse>> list(
+            @RequestParam(required = false) TicketStatus status,
+            @RequestParam(required = false) TicketPriority priority,
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) Long teamId,
+            @RequestParam(required = false) Long assignedToId,
+            @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal AuthenticatedPrincipal caller) {
-        return ResponseEntity.ok(ticketService.list(pageable, caller));
+        var criteria = new TicketSearchCriteria(status, priority, projectId, teamId, assignedToId, search);
+        return ResponseEntity.ok(ticketService.list(criteria, pageable, caller));
     }
 
     @PutMapping("/{id}")

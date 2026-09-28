@@ -3,6 +3,7 @@ package com.flowdesk.ticket.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,6 +19,7 @@ import com.flowdesk.security.AuthenticatedPrincipal;
 import com.flowdesk.team.entity.Team;
 import com.flowdesk.team.repository.TeamRepository;
 import com.flowdesk.ticket.dto.CreateTicketRequest;
+import com.flowdesk.ticket.dto.TicketSearchCriteria;
 import com.flowdesk.ticket.dto.UpdateTicketRequest;
 import com.flowdesk.ticket.entity.Ticket;
 import com.flowdesk.ticket.entity.TicketPriority;
@@ -32,10 +34,12 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 class TicketServiceTest {
@@ -235,15 +239,14 @@ class TicketServiceTest {
     }
 
     @Test
-    void list_usesRoleSpecificQuery() {
+    void list_delegatesToSpecificationBasedFindAll() {
         Pageable pageable = PageRequest.of(0, 20);
-        when(ticketRepository.findByOrganizationIdAndCreatedById(ORG_ID, 2L, pageable))
+        when(ticketRepository.findAll(ArgumentMatchers.<Specification<Ticket>>any(), eq(pageable)))
                 .thenReturn(org.springframework.data.domain.Page.empty());
 
-        ticketService.list(pageable, principal(2L, Role.USER));
+        ticketService.list(new TicketSearchCriteria(null, null, null, null, null, null), pageable, principal(2L, Role.USER));
 
-        verify(ticketRepository).findByOrganizationIdAndCreatedById(ORG_ID, 2L, pageable);
-        verify(ticketRepository, never()).findByOrganizationId(any(), any());
+        verify(ticketRepository).findAll(ArgumentMatchers.<Specification<Ticket>>any(), eq(pageable));
     }
 
     // ---- update: workflow + reassignment authorization ----

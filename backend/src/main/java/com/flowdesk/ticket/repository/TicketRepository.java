@@ -4,27 +4,36 @@ import com.flowdesk.ticket.entity.Ticket;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 /**
- * One fixed query per role's default visibility scope (Section 6 of the
- * spec - a plain {@code USER} sees only tickets they created, an
- * {@code AGENT} only ones assigned to them, etc; see
- * {@code TicketService.list}). Combining these with <em>user-supplied</em>
- * filters (status/priority/search) and fixing the N+1 risk of a paginated
- * list is Phase 6's job, via {@code JpaSpecificationExecutor} and a
- * fetch-join/entity-graph/projection - this interface intentionally stays
- * simple until then.
+ * {@code JpaSpecificationExecutor} backs {@code TicketService.list}'s
+ * dynamic search (role-visibility + user-supplied filters composed via
+ * {@code TicketSpecifications}, see its Javadoc) in place of Phase 4/5's
+ * one fixed query method per role.
  */
-public interface TicketRepository extends JpaRepository<Ticket, Long> {
+public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecificationExecutor<Ticket> {
 
     Optional<Ticket> findByIdAndOrganizationId(Long id, Long organizationId);
 
-    Page<Ticket> findByOrganizationId(Long organizationId, Pageable pageable);
-
-    Page<Ticket> findByOrganizationIdAndCreatedById(Long organizationId, Long createdById, Pageable pageable);
-
-    Page<Ticket> findByOrganizationIdAndAssignedToId(Long organizationId, Long assignedToId, Pageable pageable);
-
-    Page<Ticket> findByOrganizationIdAndTeamTeamLeadId(Long organizationId, Long teamLeadId, Pageable pageable);
+    /**
+     * Overrides {@code JpaSpecificationExecutor}'s default so that list
+     * queries fetch {@code project}/{@code team}/{@code createdBy}/
+     * {@code assignedTo} in the same round trip instead of one lazy load
+     * per row per association (the classic N+1 for a paginated list that
+     * renders names, not just IDs - see {@code TicketListItemResponse}).
+     * Safe with pagination here specifically because every fetched
+     * association is {@code @ManyToOne}: unlike fetching a
+     * {@code @OneToMany}/{@code @ManyToMany} collection, this cannot
+     * multiply row count, so in-memory pagination workarounds aren't
+     * needed. Spring Data also automatically strips the entity graph from
+     * the accompanying {@code COUNT} query, so the total-element count
+     * isn't affected either.
+     */
+    @Override
+    @EntityGraph(attributePaths = {"project", "team", "createdBy", "assignedTo"})
+    Page<Ticket> findAll(Specification<Ticket> spec, Pageable pageable);
 }

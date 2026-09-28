@@ -11,7 +11,7 @@ CI-backed delivery pipeline.
 The backend is the primary focus of this project. The frontend (React +
 TypeScript) is intentionally kept simpler.
 
-> **Status:** Phase 5 (Multi-Tenancy Hardening) complete. See [Development phases](#development-phases) below.
+> **Status:** Phase 6 (Advanced JPA) complete. See [Development phases](#development-phases) below.
 
 ## Project overview
 
@@ -392,12 +392,11 @@ The last row is an addition beyond the spec's literal "delete own
 comment" - some minimal moderation capability for an admin role is a
 reasonable, small extension, not scope creep.
 
-`GET /api/tickets` uses one fixed, role-specific query rather than a
-single dynamic one (`TicketRepository.findByOrganizationIdAndCreatedById`,
-`...AndAssignedToId`, `...AndTeamTeamLeadId`, or the unscoped
-`findByOrganizationId` for `ORG_ADMIN`) - combining this default
-visibility scope with *user-supplied* filters (status/priority/search) is
-Phase 6's job, via `JpaSpecificationExecutor`.
+`GET /api/tickets` combines the default per-role visibility scope with
+*user-supplied* filters (status/priority/project/team/assignee/title
+search) via `JpaSpecificationExecutor` - see [Advanced JPA](#advanced-jpa-phase-6)
+below for how Phase 6 replaced the one-fixed-query-per-role approach this
+section used to describe.
 
 ### Prerequisites this phase added
 
@@ -419,8 +418,7 @@ Two small, necessary additions came out of that gap:
   `PATCH /api/users/{id}/active` and `PATCH /api/users/{id}/role`
   (both `ORG_ADMIN`-only, and both reject targeting your own account -
   an `ORG_ADMIN` can't deactivate or demote themselves and risk locking
-  the organization out entirely). Full user search is still deferred to
-  Phase 6.
+  the organization out entirely).
 
 ## Team management
 
@@ -597,28 +595,37 @@ through `V8__create_comments.sql`.
   queries or fail with `LazyInitializationException` deep in a
   serializer.
 - **Optimistic locking.** `Ticket.version` (`@Version`) is in place since
-  Phase 2; the behavioral guarantee (a stale concurrent write raising
-  `OptimisticLockException`) is exercised properly once ticket mutation
-  exists as a service operation (Phase 6). `RefreshToken.version`, added
-  in Phase 3, is the first place this project actually needs and tests
-  the concurrency guarantee end-to-end: `AuthService.refresh` forces an
-  immediate flush (`saveAndFlush`, not `save`) specifically so a
-  concurrent rotation surfaces as a catchable
-  `ObjectOptimisticLockingFailureException` inside the method rather than
-  only at commit time, and `RefreshTokenConcurrencyTest` proves it under
-  real overlapping transactions.
-- **N+1 prevention** is a query-shape concern (list endpoints, filters,
-  projections) rather than a mapping concern, so it's addressed where
-  those queries are actually written — ticket listing/filtering in
-  Phase 6. `TicketMapper` maps only association *IDs*
-  (`ticket.getProject().getId()`), never names - calling `getId()` on a
-  lazy proxy is answered from the proxy's own identifier without a query,
-  so this is N+1-safe by construction even across a paginated list.
-  `CommentMapper` is the one deliberate exception: it does resolve
-  `author.getFullName()`, accepting one lazy-load per comment, because a
-  single ticket's comment thread is naturally small and bounded (unlike
-  the org-wide ticket list) - showing who wrote each comment is basic
-  expected functionality, not worth deferring to a projection.
+  Phase 2. `RefreshToken.version`, added in Phase 3, was the first place
+  this project actually needed and tested the concurrency guarantee
+  end-to-end (`RefreshTokenConcurrencyTest`, real overlapping
+  transactions). Phase 6 formalizes the same proof for `Ticket`:
+  `TicketConcurrencyTest` runs two genuinely concurrent transactions
+  against the same ticket (both past a `CyclicBarrier` after reading, so
+  neither has committed before the other writes) and asserts exactly one
+  wins while the other raises `ObjectOptimisticLockingFailureException` -
+  not just that `@Version` is present on the entity.
+- **N+1 prevention**, addressed where the query is actually written
+  rather than as a general mapping rule. `TicketMapper.toResponse` (single-
+  ticket reads) still maps only association *IDs*
+  (`ticket.getProject().getId()`) - calling `getId()` on a lazy proxy is
+  answered from the proxy's own identifier without a query, so this stays
+  N+1-safe by construction. `TicketMapper.toListItem` (the paginated list)
+  does read names off associations
+  (`ticket.getProject().getName()`, etc.), which is only safe because
+  `TicketRepository.findAll(Specification, Pageable)` is annotated with
+  `@EntityGraph(attributePaths = {"project", "team", "createdBy", "assignedTo"})` -
+  every association is fetch-joined in the same query the page is loaded
+  with, so the mapper never triggers a lazy load per row. This works
+  safely alongside pagination specifically because every fetched
+  association here is `@ManyToOne` (never a collection) - it can't
+  multiply row count the way fetch-joining a `@OneToMany` under
+  pagination would, and Spring Data strips the entity graph from the
+  accompanying `COUNT` query automatically, so `totalElements` isn't
+  affected either. `CommentMapper` remains the one other deliberate
+  exception to "map IDs only": it resolves `author.getFullName()`,
+  accepting one lazy-load per comment, because a single ticket's comment
+  thread is naturally small and bounded (unlike the org-wide ticket
+  list).
 - **Flushing before mapping to a response DTO, on every update.** Found
   via manual API testing while verifying Phase 4, not by inspection:
   `TicketService.update` mutated a managed `Ticket` with setters and
@@ -652,6 +659,40 @@ through `V8__create_comments.sql`.
   refresh wrongly succeeded. Fixed with `@Modifying(clearAutomatically = true)`,
   which evicts the persistence context after the bulk update so
   subsequent reads hit the database fresh.
+
+## Advanced JPA (Phase 6)
+
+Ticket search, built dynamic rather than as one fixed query per role
+(Phase 4/5's `TicketRepository.findByOrganizationIdAndCreatedById` /
+`...AndAssignedToId` / `...AndTeamTeamLeadId` / `findByOrganizationId`):
+
+- **`TicketSpecifications`** - one small composable `Specification<Ticket>`
+  per concern: `inOrganization`, `visibleTo` (the same per-role default
+  scope those four fixed queries encoded - `ORG_ADMIN` sees everything,
+  `TEAM_LEAD` sees their team's tickets, `AGENT` sees tickets assigned to
+  them, `USER` sees tickets they created), and one per optional
+  user-supplied filter (`hasStatus`, `hasPriority`, `hasProjectId`,
+  `hasTeamId`, `hasAssignedToId`, `titleContains`). Each filter method
+  returns `null` for "not supplied", and `TicketService.list` filters out
+  the nulls before combining the rest with `Specification.allOf(...)` -
+  `Specification.where(...).and(...)` was the older idiom for this but is
+  deprecated as of Spring Data 3.5.
+- **`GET /api/tickets`** now accepts `status`, `priority`, `projectId`,
+  `teamId`, `assignedToId`, and `search` (case-insensitive title
+  substring) as optional query parameters, alongside the existing
+  `Pageable` params - all composed with the caller's role-based visibility
+  scope, never replacing it.
+- **`TicketListItemResponse`** - a second, enriched response shape used
+  only by the list endpoint, carrying `projectName`/`teamName`/
+  `assignedToName`/`createdByName` alongside their IDs, rather than the
+  ID-only `TicketResponse` that `getById`/`create`/`update` still return -
+  a list view renders names directly, so making the client resolve every
+  ID separately would be wasteful once names can be fetched for free (see
+  the N+1 fix below).
+- **The N+1 fix and the optimistic-locking test formalization** are
+  covered above in [Architecture decisions](#architecture-decisions)
+  (`@EntityGraph` on `TicketRepository.findAll(Specification, Pageable)`,
+  and `TicketConcurrencyTest`).
 
 ## Redis
 
@@ -725,8 +766,20 @@ before moving on:
   team's, and the payoff: `TEAM_LEAD` ticket visibility (Section 6)
   proven through the real API now that a lead can actually be assigned,
   not just constructed directly in a unit test.
+- **`TicketConcurrencyTest`** (Phase 6) - the same real-overlapping-
+  transactions proof `RefreshTokenConcurrencyTest` established for
+  refresh token rotation, applied to `Ticket`: two concurrent updates to
+  the same ticket, exactly one wins, the other raises
+  `ObjectOptimisticLockingFailureException`.
 
-113 tests total as of Phase 5, all passing.
+`TicketServiceTest`'s list test and `TicketWorkflowIntegrationTest`'s list
+assertions were updated for Phase 6's `Specification`-based search
+(`TicketRepository.findAll(Specification, Pageable)` replacing the four
+fixed per-role query methods) rather than adding a separate test class -
+the role-visibility matrix they already covered didn't change, only how
+it's expressed at the repository layer.
+
+114 tests total as of Phase 6, all passing.
 
 ## Running locally
 
@@ -928,7 +981,7 @@ This project is built incrementally, one phase at a time, each verified
 - [x] **Phase 3** — Authentication (JWT, refresh tokens, BCrypt, Spring Security)
 - [x] **Phase 4** — Ticket workflow (CRUD, transitions, comments, validation) + minimal Project/User endpoints (discovered prerequisites) + tenant isolation (brought forward from Phase 5)
 - [x] **Phase 5** — Multi-tenancy hardening (systematic cross-module test suite) + full Team management + User deactivation/role-change + a real security gap found and fixed (deactivated users could keep refreshing sessions)
-- [ ] Phase 6 — Advanced JPA (pagination, specifications, projections, N+1, optimistic locking)
+- [x] **Phase 6** — Advanced JPA (`JpaSpecificationExecutor` dynamic ticket search, `@EntityGraph` N+1 fix, enriched list projection, formalized optimistic-locking concurrency test)
 - [ ] Phase 7 — Redis (caching, rate limiting)
 - [ ] Phase 8 — Kafka (domain events, notification/audit consumers)
 - [ ] Phase 9 — Dashboard + scheduled jobs

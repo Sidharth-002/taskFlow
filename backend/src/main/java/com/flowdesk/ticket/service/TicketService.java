@@ -11,17 +11,24 @@ import com.flowdesk.security.AuthenticatedPrincipal;
 import com.flowdesk.team.entity.Team;
 import com.flowdesk.team.repository.TeamRepository;
 import com.flowdesk.ticket.dto.CreateTicketRequest;
+import com.flowdesk.ticket.dto.TicketListItemResponse;
 import com.flowdesk.ticket.dto.TicketResponse;
+import com.flowdesk.ticket.dto.TicketSearchCriteria;
 import com.flowdesk.ticket.dto.UpdateTicketRequest;
 import com.flowdesk.ticket.entity.Ticket;
 import com.flowdesk.ticket.entity.TicketPriority;
 import com.flowdesk.ticket.mapper.TicketMapper;
 import com.flowdesk.ticket.repository.TicketRepository;
+import com.flowdesk.ticket.spec.TicketSpecifications;
 import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
 import com.flowdesk.user.repository.UserRepository;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -96,24 +103,35 @@ public class TicketService {
     }
 
     /**
-     * Default visibility per role (Section 6 of the spec) - one fixed
-     * query per role rather than a single dynamic query, since combining
-     * this with user-supplied filters cleanly is Phase 6's job (see
-     * {@code TicketRepository}'s Javadoc).
+     * Default visibility per role (Section 6 of the spec) composed with
+     * whichever optional filters the caller supplied
+     * (status/priority/project/team/assignee/title search), via
+     * {@link TicketSpecifications} - see its Javadoc for why this replaced
+     * Phase 4/5's one fixed query method per role. Returns the enriched
+     * {@link TicketListItemResponse} (names, not just IDs), which is safe
+     * from N+1 only because {@code TicketRepository.findAll} fetch-joins
+     * every association the mapper reads.
      */
     @Transactional(readOnly = true)
-    public Page<TicketResponse> list(Pageable pageable, AuthenticatedPrincipal caller) {
-        Page<Ticket> page = switch (caller.role()) {
-            case ORG_ADMIN -> ticketRepository.findByOrganizationId(caller.organizationId(), pageable);
-            case TEAM_LEAD -> ticketRepository.findByOrganizationIdAndTeamTeamLeadId(
-                    caller.organizationId(), caller.userId(), pageable);
-            case AGENT -> ticketRepository.findByOrganizationIdAndAssignedToId(
-                    caller.organizationId(), caller.userId(), pageable);
-            case USER -> ticketRepository.findByOrganizationIdAndCreatedById(
-                    caller.organizationId(), caller.userId(), pageable);
-            case SUPER_ADMIN -> Page.empty(pageable); // unreachable - excluded by @PreAuthorize
-        };
-        return page.map(ticketMapper::toResponse);
+    public Page<TicketListItemResponse> list(TicketSearchCriteria criteria, Pageable pageable, AuthenticatedPrincipal caller) {
+        // Specification.allOf ignores no restriction elements the way
+        // Specification.where(...).and(...) used to, without relying on
+        // that now-deprecated method - each TicketSpecifications method
+        // returns null for "filter not supplied", so nulls are filtered
+        // out here before combining the rest with logical AND.
+        List<Specification<Ticket>> specs = Stream.of(
+                        TicketSpecifications.inOrganization(caller.organizationId()),
+                        TicketSpecifications.visibleTo(caller),
+                        TicketSpecifications.hasStatus(criteria.status()),
+                        TicketSpecifications.hasPriority(criteria.priority()),
+                        TicketSpecifications.hasProjectId(criteria.projectId()),
+                        TicketSpecifications.hasTeamId(criteria.teamId()),
+                        TicketSpecifications.hasAssignedToId(criteria.assignedToId()),
+                        TicketSpecifications.titleContains(criteria.search()))
+                .filter(Objects::nonNull)
+                .toList();
+
+        return ticketRepository.findAll(Specification.allOf(specs), pageable).map(ticketMapper::toListItem);
     }
 
     /**
