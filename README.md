@@ -11,7 +11,7 @@ CI-backed delivery pipeline.
 The backend is the primary focus of this project. The frontend (React +
 TypeScript) is intentionally kept simpler.
 
-> **Status:** Phase 7 (Redis) complete. See [Development phases](#development-phases) below.
+> **Status:** Phase 8 (Kafka) complete. See [Development phases](#development-phases) below.
 
 ## Project overview
 
@@ -745,9 +745,56 @@ for real, just with its own small, deterministic values, in
 
 ## Kafka
 
-*(Implemented in Phase 8: `TicketCreated`, `TicketAssigned`,
-`TicketStatusChanged`, `TicketCommentAdded`, `TicketClosed` events,
-consumed by independent notification and audit consumers.)*
+Five ticket domain events - `TicketCreatedEvent`, `TicketAssignedEvent`,
+`TicketStatusChangedEvent`, `TicketClosedEvent` (`ticket.event`), and
+`TicketCommentAddedEvent` (`comment.event`) - all published to the one
+`ticket-events` topic (`config.KafkaTopics`), keyed by ticket ID so every
+event for the same ticket lands in the same partition and is consumed in
+the order it actually happened. `apache/kafka:3.8.0` in KRaft mode
+(broker + controller combined, no Zookeeper) backs this locally via
+`docker-compose.yml`.
+
+**Publish-then-relay, not a direct Kafka send.** `TicketService`/
+`CommentService` never touch Kafka directly - they call
+`TicketEventPublisher.publish(event)`, which raises an in-process Spring
+`ApplicationEvent`. `TicketEventKafkaRelay` picks it up via
+`@TransactionalEventListener(phase = AFTER_COMMIT)` and only then sends it
+to Kafka. This means a request that fails and rolls back after publishing
+an event (e.g. a concurrent edit losing the optimistic-lock race
+elsewhere in the same method) never produces a Kafka message for a change
+that never actually happened - see `TicketEventKafkaRelay`'s Javadoc for
+why this is a deliberately lighter-weight alternative to a full
+transactional outbox table, and what gap that leaves open.
+
+**Two independent consumers**, each its own Kafka consumer group (so both
+see every event - a shared group would split events between them instead):
+- **`notification.listener.NotificationEventListener`** (group
+  `notification-service`) creates an in-app `Notification` row for the
+  ticket's creator/assignee (excluding whoever caused the event) -
+  `TicketAssignedEvent` notifies the new assignee, `TicketClosedEvent` and
+  non-closing `TicketStatusChangedEvent`s notify creator+assignee,
+  `TicketCommentAddedEvent` notifies creator+assignee excluding the
+  comment's own author. `TicketCreatedEvent` produces no notification -
+  the creator already knows. Read via `GET /api/notifications` (the
+  caller's own, paginated) and `PATCH /api/notifications/{id}/read`.
+- **`audit.listener.AuditEventListener`** (group `audit-service`) records
+  every event, including `TicketCreatedEvent`, as an immutable
+  `AuditLog` row - a ticket's full activity history. Read via
+  `GET /api/tickets/{ticketId}/audit-log`, gated by the same
+  visibility rule as the ticket itself (`AuditService` delegates to
+  `TicketService.loadVisible`).
+
+Both `notifications.ticket_id` and `audit_logs.ticket_id` are plain
+columns, not foreign keys - see the migrations' comments: a ticket can be
+deleted, and its notification/audit history should survive that rather
+than being cascade-deleted or blocking the deletion.
+
+**Resilience.** The consumer side uses `ErrorHandlingDeserializer`
+wrapping `JsonDeserializer`, so one malformed record fails only itself
+(logged, skipped) instead of killing the whole listener container. The
+producer side (`TicketEventKafkaRelay`) logs, rather than throws, on a
+failed send - a Kafka outage must not fail the original HTTP request,
+which has already committed successfully by the time the relay runs.
 
 ## Testing
 
@@ -837,8 +884,23 @@ it's expressed at the repository layer.
   directly through the repository (bypassing the service, and therefore
   its `@CacheEvict`) is invisible on the next `getById` until a call
   through the service's own mutating method evicts the entry.
+- **`TicketServiceTest`/`CommentServiceTest`'s event-publishing cases**
+  (Phase 8) - `TicketEventPublisher` mocked, verifying the right event
+  (and, just as importantly, *only* the right event - a same-assignee
+  reassignment or a title-only edit must not fire a spurious
+  `TicketAssignedEvent`/`TicketStatusChangedEvent`) is published for
+  create/assign/status-change/close/comment.
+- **`KafkaEventFlowIntegrationTest`** (Phase 8, real Kafka broker, real
+  HTTP calls through MockMvc) - the full pipeline end-to-end: creating,
+  assigning, commenting on, and closing a ticket each eventually produces
+  the right `Notification`/`AuditLog` rows, polled for asynchronously
+  rather than asserted immediately. Deliberately not `@Transactional`
+  like this project's other MockMvc tests - `TicketEventKafkaRelay` only
+  relays `AFTER_COMMIT`, and a test-wrapping transaction that always
+  rolls back would mean that commit, and therefore the relay, never
+  happens (see the class's own Javadoc).
 
-122 tests total as of Phase 7, all passing.
+130 tests total as of Phase 8, all passing.
 
 ## Running locally
 
@@ -853,8 +915,8 @@ it's expressed at the repository layer.
 # 1. Copy environment template
 cp .env.example .env
 
-# 2. Start infrastructure (PostgreSQL + Redis; Kafka added in a later phase)
-docker compose up -d postgres redis
+# 2. Start infrastructure (PostgreSQL + Redis + Kafka)
+docker compose up -d postgres redis kafka
 
 # 3. Run the backend
 cd backend
@@ -870,7 +932,9 @@ curl http://localhost:8080/actuator/health
 > **Local port note:** the Dockerized PostgreSQL is mapped to host port
 > `5433` (not `5432`), and Redis to `6380` (not `6379`), to avoid clashing
 > with locally installed PostgreSQL/Redis services, if either is running.
-> Adjust `DB_PORT`/`REDIS_PORT` in `.env` if your setup differs.
+> Kafka uses its standard `9092` (free by default on this project's dev
+> machine, hence no remapping) - adjust `DB_PORT`/`REDIS_PORT`/`KAFKA_PORT`
+> in `.env` if your setup differs.
 
 > **JWT secret note:** the `dev` profile has a built-in (insecure,
 > clearly-labeled) fallback signing secret, so no setup is needed locally.
@@ -1042,7 +1106,7 @@ This project is built incrementally, one phase at a time, each verified
 - [x] **Phase 5** — Multi-tenancy hardening (systematic cross-module test suite) + full Team management + User deactivation/role-change + a real security gap found and fixed (deactivated users could keep refreshing sessions)
 - [x] **Phase 6** — Advanced JPA (`JpaSpecificationExecutor` dynamic ticket search, `@EntityGraph` N+1 fix, enriched list projection, formalized optimistic-locking concurrency test)
 - [x] **Phase 7** — Redis (read-through caching for Project/Team/User lookups, distributed fixed-window rate limiting on auth endpoints)
-- [ ] Phase 8 — Kafka (domain events, notification/audit consumers)
+- [x] **Phase 8** — Kafka (`ticket-events` topic, publish-then-relay-after-commit, independent notification/audit consumer groups)
 - [ ] Phase 9 — Dashboard + scheduled jobs
 - [ ] Phase 10 — Testing (unit, controller, integration, Testcontainers)
 - [ ] Phase 11 — Production readiness (Actuator, logging, correlation IDs, CI, OpenAPI)
@@ -1054,7 +1118,7 @@ This project is built incrementally, one phase at a time, each verified
 flowdesk/
 ├── backend/            Spring Boot application (primary focus)
 ├── frontend/           React + TypeScript SPA (added in Phase 12)
-├── docker-compose.yml  Local infrastructure (Postgres now; Redis/Kafka later)
+├── docker-compose.yml  Local infrastructure (Postgres, Redis, Kafka)
 ├── .env.example        Environment variable template
 └── .github/workflows/  CI pipeline (added in Phase 11)
 ```

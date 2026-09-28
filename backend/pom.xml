@@ -96,6 +96,15 @@
 			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
 
+		<!-- Kafka: domain events (ticket lifecycle) published after
+		     transaction commit and consumed independently by the
+		     notification and audit modules - see `ticket.event` and
+		     `config.KafkaConfig`. Added in Phase 8. -->
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+		</dependency>
+
 		<!-- Observability -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

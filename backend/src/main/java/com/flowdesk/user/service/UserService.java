@@ -1,6 +1,6 @@
 package com.flowdesk.user.service;
 
-import static com.flowdesk.common.config.CacheConfig.USERS_CACHE;
+import static com.flowdesk.config.CacheConfig.USERS_CACHE;
 
 import com.flowdesk.auth.service.AuthService;
 import com.flowdesk.common.exception.DuplicateResourceException;

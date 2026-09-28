@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.flowdesk.comment.dto.CreateCommentRequest;
 import com.flowdesk.comment.entity.Comment;
+import com.flowdesk.comment.event.TicketCommentAddedEvent;
 import com.flowdesk.comment.mapper.CommentMapper;
 import com.flowdesk.comment.repository.CommentRepository;
 import com.flowdesk.common.exception.TenantAccessDeniedException;
@@ -15,6 +16,7 @@ import com.flowdesk.common.exception.UnauthorizedOperationException;
 import com.flowdesk.organization.entity.Organization;
 import com.flowdesk.security.AuthenticatedPrincipal;
 import com.flowdesk.ticket.entity.Ticket;
+import com.flowdesk.ticket.event.TicketEventPublisher;
 import com.flowdesk.ticket.service.TicketService;
 import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
@@ -23,6 +25,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -37,12 +40,14 @@ class CommentServiceTest {
     private TicketService ticketService;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private TicketEventPublisher eventPublisher;
 
     private CommentService commentService;
 
     @BeforeEach
     void setUp() {
-        commentService = new CommentService(commentRepository, ticketService, userRepository, new CommentMapper());
+        commentService = new CommentService(commentRepository, ticketService, userRepository, new CommentMapper(), eventPublisher);
     }
 
     private void setId(Object entity, Long id) {
@@ -100,6 +105,12 @@ class CommentServiceTest {
 
         assertThat(response.body()).isEqualTo("Hello");
         assertThat(response.authorId()).isEqualTo(1L);
+
+        var captor = ArgumentCaptor.forClass(TicketCommentAddedEvent.class);
+        verify(eventPublisher).publish(captor.capture());
+        assertThat(captor.getValue().ticketId()).isEqualTo(50L);
+        assertThat(captor.getValue().commentId()).isEqualTo(1L);
+        assertThat(captor.getValue().authorId()).isEqualTo(1L);
     }
 
     @Test

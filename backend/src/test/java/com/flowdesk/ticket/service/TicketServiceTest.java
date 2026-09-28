@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,6 +25,11 @@ import com.flowdesk.ticket.dto.UpdateTicketRequest;
 import com.flowdesk.ticket.entity.Ticket;
 import com.flowdesk.ticket.entity.TicketPriority;
 import com.flowdesk.ticket.entity.TicketStatus;
+import com.flowdesk.ticket.event.TicketAssignedEvent;
+import com.flowdesk.ticket.event.TicketClosedEvent;
+import com.flowdesk.ticket.event.TicketCreatedEvent;
+import com.flowdesk.ticket.event.TicketEventPublisher;
+import com.flowdesk.ticket.event.TicketStatusChangedEvent;
 import com.flowdesk.ticket.exception.InvalidTicketTransitionException;
 import com.flowdesk.ticket.mapper.TicketMapper;
 import com.flowdesk.ticket.repository.TicketRepository;
@@ -34,6 +40,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -56,6 +63,8 @@ class TicketServiceTest {
     private UserRepository userRepository;
     @Mock
     private OrganizationRepository organizationRepository;
+    @Mock
+    private TicketEventPublisher eventPublisher;
 
     // A real instance, not a mock: TicketMapper is a small pure function
     // with no dependencies of its own, so exercising the real mapping
@@ -69,7 +78,7 @@ class TicketServiceTest {
     void setUp() {
         ticketService = new TicketService(
                 ticketRepository, projectRepository, teamRepository, userRepository,
-                organizationRepository, new TicketMapper());
+                organizationRepository, new TicketMapper(), eventPublisher);
     }
 
     private void setId(Object entity, Long id) {
@@ -140,6 +149,29 @@ class TicketServiceTest {
 
         assertThat(response.status()).isEqualTo(TicketStatus.OPEN);
         assertThat(response.priority()).isEqualTo(TicketPriority.MEDIUM);
+    }
+
+    @Test
+    void create_publishesTicketCreatedEvent() {
+        AuthenticatedPrincipal caller = principal(1L, Role.ORG_ADMIN);
+        Project project = project(10L, ORG_ID);
+        when(projectRepository.findByIdAndOrganizationId(10L, ORG_ID)).thenReturn(Optional.of(project));
+        when(organizationRepository.getReferenceById(ORG_ID)).thenReturn(org(ORG_ID));
+        when(userRepository.getReferenceById(1L)).thenReturn(user(1L, Role.ORG_ADMIN));
+        when(ticketRepository.save(any())).thenAnswer(inv -> {
+            Ticket t = inv.getArgument(0);
+            setId(t, 500L);
+            return t;
+        });
+
+        ticketService.create(new CreateTicketRequest("Broken thing", "desc", null, 10L, null, null, null), caller);
+
+        var captor = ArgumentCaptor.forClass(TicketCreatedEvent.class);
+        verify(eventPublisher).publish(captor.capture());
+        assertThat(captor.getValue().ticketId()).isEqualTo(500L);
+        assertThat(captor.getValue().organizationId()).isEqualTo(ORG_ID);
+        assertThat(captor.getValue().createdById()).isEqualTo(1L);
+        assertThat(captor.getValue().title()).isEqualTo("Broken thing");
     }
 
     @Test
@@ -278,6 +310,49 @@ class TicketServiceTest {
     }
 
     @Test
+    void update_statusChange_publishesTicketStatusChangedEvent_butNotWhenUnchanged() {
+        Ticket ticket = ticket(5L, ORG_ID, user(1L, Role.ORG_ADMIN), null, null, TicketStatus.OPEN);
+        when(ticketRepository.findById(5L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ticketService.update(
+                5L, new UpdateTicketRequest(null, null, TicketStatus.IN_PROGRESS, null, null, null, null),
+                principal(1L, Role.ORG_ADMIN));
+
+        var captor = ArgumentCaptor.forClass(TicketStatusChangedEvent.class);
+        verify(eventPublisher).publish(captor.capture());
+        assertThat(captor.getValue().oldStatus()).isEqualTo(TicketStatus.OPEN);
+        assertThat(captor.getValue().newStatus()).isEqualTo(TicketStatus.IN_PROGRESS);
+        verify(eventPublisher, never()).publish(any(TicketClosedEvent.class));
+
+        // A no-op "update" that doesn't actually change status (e.g. only
+        // the title changes) must not publish a spurious status-change
+        // event.
+        clearInvocations(eventPublisher);
+        ticketService.update(
+                5L, new UpdateTicketRequest("New title", null, null, null, null, null, null),
+                principal(1L, Role.ORG_ADMIN));
+        verify(eventPublisher, never()).publish(any(TicketStatusChangedEvent.class));
+    }
+
+    @Test
+    void update_transitionToClosed_publishesBothStatusChangedAndClosedEvents() {
+        Ticket ticket = ticket(5L, ORG_ID, user(1L, Role.ORG_ADMIN), null, null, TicketStatus.RESOLVED);
+        when(ticketRepository.findById(5L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ticketService.update(
+                5L, new UpdateTicketRequest(null, null, TicketStatus.CLOSED, null, null, null, null),
+                principal(1L, Role.ORG_ADMIN));
+
+        verify(eventPublisher).publish(any(TicketStatusChangedEvent.class));
+        var captor = ArgumentCaptor.forClass(TicketClosedEvent.class);
+        verify(eventPublisher).publish(captor.capture());
+        assertThat(captor.getValue().ticketId()).isEqualTo(5L);
+        assertThat(captor.getValue().closedById()).isEqualTo(1L);
+    }
+
+    @Test
     void update_agentReassigningTicket_throwsUnauthorizedOperation() {
         User agent = user(3L, Role.AGENT);
         Ticket ticket = ticket(5L, ORG_ID, user(1L, Role.ORG_ADMIN), agent, null, TicketStatus.OPEN);
@@ -304,6 +379,26 @@ class TicketServiceTest {
                 principal(1L, Role.ORG_ADMIN));
 
         assertThat(response.assignedToId()).isEqualTo(9L);
+
+        var captor = ArgumentCaptor.forClass(TicketAssignedEvent.class);
+        verify(eventPublisher).publish(captor.capture());
+        assertThat(captor.getValue().assignedToId()).isEqualTo(9L);
+        assertThat(captor.getValue().assignedById()).isEqualTo(1L);
+    }
+
+    @Test
+    void update_reassigningToSameAssignee_doesNotPublishTicketAssignedEvent() {
+        User existingAssignee = user(9L, Role.AGENT);
+        Ticket ticket = ticket(5L, ORG_ID, user(1L, Role.ORG_ADMIN), existingAssignee, null, TicketStatus.OPEN);
+        when(ticketRepository.findById(5L)).thenReturn(Optional.of(ticket));
+        when(userRepository.findByIdAndOrganizationId(9L, ORG_ID)).thenReturn(Optional.of(existingAssignee));
+        when(ticketRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ticketService.update(
+                5L, new UpdateTicketRequest(null, null, null, null, null, 9L, null),
+                principal(1L, Role.ORG_ADMIN));
+
+        verify(eventPublisher, never()).publish(any(TicketAssignedEvent.class));
     }
 
     @Test

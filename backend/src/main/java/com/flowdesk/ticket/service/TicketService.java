@@ -17,12 +17,19 @@ import com.flowdesk.ticket.dto.TicketSearchCriteria;
 import com.flowdesk.ticket.dto.UpdateTicketRequest;
 import com.flowdesk.ticket.entity.Ticket;
 import com.flowdesk.ticket.entity.TicketPriority;
+import com.flowdesk.ticket.entity.TicketStatus;
+import com.flowdesk.ticket.event.TicketAssignedEvent;
+import com.flowdesk.ticket.event.TicketClosedEvent;
+import com.flowdesk.ticket.event.TicketCreatedEvent;
+import com.flowdesk.ticket.event.TicketEventPublisher;
+import com.flowdesk.ticket.event.TicketStatusChangedEvent;
 import com.flowdesk.ticket.mapper.TicketMapper;
 import com.flowdesk.ticket.repository.TicketRepository;
 import com.flowdesk.ticket.spec.TicketSpecifications;
 import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
 import com.flowdesk.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -47,6 +54,7 @@ public class TicketService {
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
     private final TicketMapper ticketMapper;
+    private final TicketEventPublisher eventPublisher;
 
     public TicketService(
             TicketRepository ticketRepository,
@@ -54,13 +62,15 @@ public class TicketService {
             TeamRepository teamRepository,
             UserRepository userRepository,
             OrganizationRepository organizationRepository,
-            TicketMapper ticketMapper) {
+            TicketMapper ticketMapper,
+            TicketEventPublisher eventPublisher) {
         this.ticketRepository = ticketRepository;
         this.projectRepository = projectRepository;
         this.teamRepository = teamRepository;
         this.userRepository = userRepository;
         this.organizationRepository = organizationRepository;
         this.ticketMapper = ticketMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -94,7 +104,11 @@ public class TicketService {
                 .dueDate(request.dueDate())
                 .build();
 
-        return ticketMapper.toResponse(ticketRepository.save(ticket));
+        Ticket saved = ticketRepository.save(ticket);
+        eventPublisher.publish(new TicketCreatedEvent(
+                saved.getId(), saved.getOrganization().getId(), saved.getProject().getId(),
+                caller.userId(), saved.getTitle(), Instant.now()));
+        return ticketMapper.toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -145,6 +159,8 @@ public class TicketService {
     @Transactional
     public TicketResponse update(Long id, UpdateTicketRequest request, AuthenticatedPrincipal caller) {
         Ticket ticket = loadVisible(id, caller);
+        TicketStatus previousStatus = ticket.getStatus();
+        Long previousAssigneeId = ticket.getAssignedTo() != null ? ticket.getAssignedTo().getId() : null;
 
         if (request.title() != null) {
             ticket.setTitle(request.title());
@@ -184,7 +200,34 @@ public class TicketService {
         // a concurrent edit's ObjectOptimisticLockingFailureException
         // surfaces from this method call (handled globally), rather than
         // only later when the transaction commits.
-        return ticketMapper.toResponse(ticketRepository.saveAndFlush(ticket));
+        Ticket saved = ticketRepository.saveAndFlush(ticket);
+        publishUpdateEvents(saved, previousStatus, previousAssigneeId, caller);
+        return ticketMapper.toResponse(saved);
+    }
+
+    /**
+     * Compares before/after state rather than the raw request fields,
+     * since e.g. reassigning a ticket to the assignee it already has
+     * ({@code request.assignedToId()} non-null but unchanged) shouldn't
+     * fire a spurious {@link TicketAssignedEvent}.
+     */
+    private void publishUpdateEvents(Ticket ticket, TicketStatus previousStatus, Long previousAssigneeId, AuthenticatedPrincipal caller) {
+        Instant now = Instant.now();
+
+        Long newAssigneeId = ticket.getAssignedTo() != null ? ticket.getAssignedTo().getId() : null;
+        if (newAssigneeId != null && !newAssigneeId.equals(previousAssigneeId)) {
+            eventPublisher.publish(new TicketAssignedEvent(
+                    ticket.getId(), ticket.getOrganization().getId(), newAssigneeId, caller.userId(), now));
+        }
+
+        if (ticket.getStatus() != previousStatus) {
+            eventPublisher.publish(new TicketStatusChangedEvent(
+                    ticket.getId(), ticket.getOrganization().getId(), previousStatus, ticket.getStatus(), caller.userId(), now));
+            if (ticket.getStatus() == TicketStatus.CLOSED) {
+                eventPublisher.publish(new TicketClosedEvent(
+                        ticket.getId(), ticket.getOrganization().getId(), caller.userId(), now));
+            }
+        }
     }
 
     @Transactional

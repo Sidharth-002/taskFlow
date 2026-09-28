@@ -1,6 +1,6 @@
 package com.flowdesk.team.service;
 
-import static com.flowdesk.common.config.CacheConfig.TEAMS_CACHE;
+import static com.flowdesk.config.CacheConfig.TEAMS_CACHE;
 
 import com.flowdesk.common.exception.ResourceNotFoundException;
 import com.flowdesk.common.exception.TenantAccessDeniedException;

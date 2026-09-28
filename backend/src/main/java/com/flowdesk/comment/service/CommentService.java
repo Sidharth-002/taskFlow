@@ -3,6 +3,7 @@ package com.flowdesk.comment.service;
 import com.flowdesk.comment.dto.CommentResponse;
 import com.flowdesk.comment.dto.CreateCommentRequest;
 import com.flowdesk.comment.entity.Comment;
+import com.flowdesk.comment.event.TicketCommentAddedEvent;
 import com.flowdesk.comment.mapper.CommentMapper;
 import com.flowdesk.comment.repository.CommentRepository;
 import com.flowdesk.common.exception.ResourceNotFoundException;
@@ -10,10 +11,12 @@ import com.flowdesk.common.exception.TenantAccessDeniedException;
 import com.flowdesk.common.exception.UnauthorizedOperationException;
 import com.flowdesk.security.AuthenticatedPrincipal;
 import com.flowdesk.ticket.entity.Ticket;
+import com.flowdesk.ticket.event.TicketEventPublisher;
 import com.flowdesk.ticket.service.TicketService;
 import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
 import com.flowdesk.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,16 +28,19 @@ public class CommentService {
     private final TicketService ticketService;
     private final UserRepository userRepository;
     private final CommentMapper commentMapper;
+    private final TicketEventPublisher eventPublisher;
 
     public CommentService(
             CommentRepository commentRepository,
             TicketService ticketService,
             UserRepository userRepository,
-            CommentMapper commentMapper) {
+            CommentMapper commentMapper,
+            TicketEventPublisher eventPublisher) {
         this.commentRepository = commentRepository;
         this.ticketService = ticketService;
         this.userRepository = userRepository;
         this.commentMapper = commentMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -51,7 +57,10 @@ public class CommentService {
                 .body(request.body())
                 .build();
 
-        return commentMapper.toResponse(commentRepository.save(comment));
+        Comment saved = commentRepository.save(comment);
+        eventPublisher.publish(new TicketCommentAddedEvent(
+                ticket.getId(), ticket.getOrganization().getId(), saved.getId(), caller.userId(), Instant.now()));
+        return commentMapper.toResponse(saved);
     }
 
     @Transactional(readOnly = true)

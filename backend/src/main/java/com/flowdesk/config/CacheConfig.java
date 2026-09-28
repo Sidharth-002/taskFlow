@@ -1,4 +1,4 @@
-package com.flowdesk.common.config;
+package com.flowdesk.config;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;

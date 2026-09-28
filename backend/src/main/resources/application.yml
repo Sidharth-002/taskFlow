@@ -27,6 +27,35 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: false
+  kafka:
+    # bootstrap-servers itself is set per-profile (application-dev.yml has
+    # a localhost fallback; application-prod.yml requires
+    # KAFKA_BOOTSTRAP_SERVERS and fails fast without it - the same
+    # fail-fast-in-prod treatment as the JWT secret and Redis host).
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      # Each @KafkaListener sets its own groupId explicitly (one per
+      # consumer - notification and audit must each see every event
+      # independently, which requires separate consumer groups, not one
+      # shared group that would split events between them). This default
+      # only covers anything that ever forgets to.
+      group-id: flowdesk-default
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        # ErrorHandlingDeserializer wraps the real deserializer so a
+        # malformed/unexpected record fails that one record (logged and
+        # skipped by the container's default error handler) instead of
+        # killing the whole listener container - one bad message on the
+        # topic shouldn't stop every future event from being consumed.
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        # Every concrete event type lives in ticket.event/comment.event -
+        # a whitelist, not "*", so this consumer only ever instantiates
+        # classes FlowDesk itself defined from a JSON payload.
+        spring.json.trusted.packages: com.flowdesk.*
 
 server:
   port: ${SERVER_PORT:8080}
