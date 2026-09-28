@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build and test (backend)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      # No `docker compose up` step, and no service containers declared
+      # above - Phase 10 moved every integration test onto ephemeral
+      # Testcontainers (Postgres, Kafka, Redis), which only need a Docker
+      # daemon to talk to. GitHub-hosted ubuntu-latest runners already
+      # have one preinstalled, so `mvn verify` is self-contained here the
+      # same way it is on a developer's machine.
+      - name: Build and run full test suite
+        working-directory: backend
+        run: ./mvnw -B -ntp clean verify
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            backend/target/surefire-reports/
+            backend/target/failsafe-reports/
+          retention-days: 7
+
+  build-frontend:
+    name: Build and lint (frontend)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      # tsc -b (part of `npm run build`) is this frontend's only type
+      # checking - there's no separate test suite (see frontend/README.md
+      # for why), so a clean build is what CI verifies here.
+      - name: Type-check and build
+        working-directory: frontend
+        run: npm run build

@@ -19,10 +19,61 @@ services:
       timeout: 5s
       retries: 10
 
-  # Redis and Kafka are added in Phases 7 and 8 respectively, once the
-  # application code that actually depends on them exists. Standing up
-  # infrastructure ahead of the code that uses it makes it impossible to
-  # tell, by looking at this file's history, which phase introduced what.
+  redis:
+    image: redis:7-alpine
+    container_name: flowdesk-redis
+    restart: unless-stopped
+    ports:
+      # Host port defaults to 6380 to avoid clashing with a locally
+      # installed Redis service that may already own 6379 (same reasoning
+      # as Postgres's 5433 above).
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - flowdesk-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    # KRaft mode (broker + controller combined in one process) - no
+    # Zookeeper needed. The official Apache Kafka image has supported this
+    # standalone since 3.7/3.8, which is simpler for a single local
+    # instance than running a separate Zookeeper container just for one
+    # broker.
+    image: apache/kafka:3.8.0
+    container_name: flowdesk-kafka
+    restart: unless-stopped
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # Two listeners: PLAINTEXT is what the broker binds to inside the
+      # container; CONTROLLER is KRaft's internal consensus listener
+      # (never used by application clients). ADVERTISED_LISTENERS is what
+      # the broker tells a client to reconnect to after the initial
+      # handshake - it must be the *host*-reachable address
+      # (localhost:${KAFKA_PORT}), not the container-internal bind
+      # address, since FlowDesk runs on the host, not inside this compose
+      # network.
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:${KAFKA_PORT:-9092}
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    volumes:
+      - flowdesk-kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 volumes:
   flowdesk-postgres-data:
+  flowdesk-redis-data:
+  flowdesk-kafka-data:

@@ -1,8 +1,39 @@
-# Test profile.
-# Placeholder for now - wired up properly in Phase 10 (Testing), where
-# Testcontainers supplies an ephemeral PostgreSQL instance and overrides
-# spring.datasource.* dynamically via @DynamicPropertySource rather than
-# fixed values living in this file.
+# Test profile - active for every test tagged @IntegrationTest/@WebIntegrationTest
+# (see testsupport.IntegrationTest). spring.datasource.*,
+# spring.kafka.bootstrap-servers, and spring.data.redis.* are deliberately
+# absent here: testsupport.ContainersConfig's @ServiceConnection beans
+# inject all three dynamically, at whatever host port Docker assigns their
+# Postgres/Kafka/Redis containers - nothing in this file hardcodes a port
+# the way application-dev.yml does for the shared docker-compose services.
 spring:
   flyway:
     enabled: true
+  jpa:
+    show-sql: false
+
+app:
+  jwt:
+    # A test-only fallback, independent of application-dev.yml's - this
+    # profile is for the automated suite, not a developer running the app,
+    # so it gets its own clearly-fake value rather than assuming dev's
+    # happens to still be appropriate.
+    secret: ${JWT_SECRET:test-only-insecure-jwt-signing-secret-do-not-use-in-prod}
+  # Same reasoning as application-dev.yml's override: the suite makes
+  # dozens of legitimate register/login/refresh calls against one shared
+  # (per test JVM) Redis container, and application.yml's defaults are
+  # sized for production abuse resistance, not that.
+  rate-limit:
+    register:
+      capacity: 1000
+      window: 10m
+    login:
+      capacity: 1000
+      window: 1m
+    refresh:
+      capacity: 1000
+      window: 1m
+
+logging:
+  level:
+    com.flowdesk: INFO
+    org.hibernate.SQL: WARN
