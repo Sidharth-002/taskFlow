@@ -40,3 +40,33 @@ jobs:
           name: surefire-reports
           path: backend/target/surefire-reports/
           retention-days: 7
+
+  build-frontend:
+    name: Build and lint (frontend)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      # tsc -b (part of `npm run build`) is this frontend's only type
+      # checking - there's no separate test suite (see frontend/README.md
+      # for why), so a clean build is what CI verifies here.
+      - name: Type-check and build
+        working-directory: frontend
+        run: npm run build

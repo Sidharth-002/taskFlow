@@ -11,7 +11,7 @@ CI-backed delivery pipeline.
 The backend is the primary focus of this project. The frontend (React +
 TypeScript) is intentionally kept simpler.
 
-> **Status:** Phase 11 (Production readiness) complete. See [Development phases](#development-phases) below.
+> **Status:** All 12 phases complete. See [Development phases](#development-phases) below.
 
 ## Project overview
 
@@ -33,8 +33,8 @@ authorized by role, scoped to their own organization's data.
 - Lombok
 - Maven (via Maven Wrapper)
 
-**Frontend** *(added in Phase 12)*
-- React, TypeScript, React Router, Axios
+**Frontend**
+- React 18, TypeScript, React Router v6, Axios (via Vite)
 
 **Infrastructure**
 - Docker / Docker Compose
@@ -848,6 +848,25 @@ follows:
   passes, avoiding the need for a separate "revoked long enough ago"
   cutoff.
 
+## Frontend
+
+A React + TypeScript SPA (`frontend/`, Vite-scaffolded) - intentionally
+simple, per the spec's own framing of the frontend as secondary to the
+backend. It covers register/login, the ticket list (filter + pagination),
+creating a ticket, a ticket's detail view (status changes, comments), and
+notifications. It deliberately does **not** cover team management, user
+management, the dashboard, or audit log viewing - every one of those is
+an admin-only action in the backend with no plain-user equivalent to
+build a simpler UI around, and building admin screens for them wasn't
+judged worth it for a frontend whose own scope is meant to stay small.
+See [`frontend/README.md`](frontend/README.md) for the full breakdown,
+including the two most notable client-side decisions: JWTs kept in
+`localStorage` rather than an httpOnly cookie (simpler, at the cost of
+XSS exposure a cookie would avoid - an accepted trade-off given this
+frontend's scope), and in-flight refresh-token deduplication (two
+requests hitting a 401 at once must not each independently rotate the
+one-time-use refresh token, or whichever loses that race fails).
+
 ## Testing
 
 **Every integration test runs against ephemeral Testcontainers**
@@ -1023,6 +1042,7 @@ depended on the shared dev services.
 - Docker + Docker Compose
 - Java 21 (only needed if running the backend outside Docker; the Maven
   wrapper handles Maven itself)
+- Node.js 18+ (only needed for the frontend)
 
 ### Steps
 
@@ -1043,6 +1063,18 @@ The API starts on `http://localhost:8080`. Health check:
 ```bash
 curl http://localhost:8080/actuator/health
 ```
+
+To also run the frontend (see [`frontend/README.md`](frontend/README.md)
+for more), in a separate terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+It starts on `http://localhost:5173`, already permitted by the backend's
+default CORS configuration.
 
 > **Local port note:** the Dockerized PostgreSQL is mapped to host port
 > `5433` (not `5432`), and Redis to `6380` (not `6379`), to avoid clashing
@@ -1127,13 +1159,16 @@ deliberately minimal in every profile (`env`/`beans` are dev-only, per
 `application-dev.yml`) - broader diagnostic endpoints are real attack
 surface in production, not free observability.
 
-**CI** (`.github/workflows/ci.yml`) runs `./mvnw clean verify` on every
-push/PR to `main` - a single job, no Postgres/Kafka/Redis service
-containers declared, because Phase 10 already moved every integration
-test onto Testcontainers. GitHub-hosted `ubuntu-latest` runners have a
-Docker daemon preinstalled, so the workflow is exactly as self-contained
-as running the suite on a developer's own machine - no infrastructure
-setup step to keep in sync between the two.
+**CI** (`.github/workflows/ci.yml`) runs two independent jobs on every
+push/PR to `main`: `./mvnw clean verify` for the backend - no Postgres/
+Kafka/Redis service containers declared, because Phase 10 already moved
+every integration test onto Testcontainers, and GitHub-hosted
+`ubuntu-latest` runners have a Docker daemon preinstalled, so the
+workflow is exactly as self-contained as running the suite on a
+developer's own machine - and `npm run lint && npm run build` for the
+frontend (added alongside it in Phase 12; there's no frontend test suite
+to run - see `frontend/README.md` - so a clean type-checked build is what
+CI verifies there).
 
 ## Architecture decisions (ADR-style)
 
@@ -1291,14 +1326,14 @@ This project is built incrementally, one phase at a time, each verified
 - [x] **Phase 9** — Dashboard (`GET /api/dashboard/summary`, role-scoped, Redis-cached) + scheduled jobs (overdue ticket detection via a domain event, expired refresh token cleanup)
 - [x] **Phase 10** — Testing (every integration test migrated to ephemeral Testcontainers Postgres/Kafka/Redis, a real `test` profile, hermetic - no `docker compose up` needed to run the suite)
 - [x] **Phase 11** — Production readiness (correlation IDs, structured JSON logging in prod, `/actuator/info` build metadata, GitHub Actions CI, OpenAPI/Swagger UI)
-- [ ] Phase 12 — React frontend
+- [x] **Phase 12** — React frontend (register/login, ticket list/detail/create, comments, notifications - intentionally simple, see [Frontend](#frontend))
 
 ## Repository layout
 
 ```
 flowdesk/
 ├── backend/            Spring Boot application (primary focus)
-├── frontend/           React + TypeScript SPA (added in Phase 12)
+├── frontend/           React + TypeScript SPA
 ├── docker-compose.yml  Local infrastructure (Postgres, Redis, Kafka)
 ├── .env.example        Environment variable template
 └── .github/workflows/  CI pipeline (ci.yml)
