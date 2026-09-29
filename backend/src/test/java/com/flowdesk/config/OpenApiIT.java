@@ -20,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * leave both enabled).
  */
 @WebIntegrationTest
-class OpenApiIntegrationTest {
+class OpenApiIT {
 
     @Autowired
     private MockMvc mockMvc;

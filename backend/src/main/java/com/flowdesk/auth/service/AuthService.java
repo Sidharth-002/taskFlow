@@ -7,12 +7,12 @@ import com.flowdesk.auth.dto.RegisterRequest;
 import com.flowdesk.auth.entity.RefreshToken;
 import com.flowdesk.auth.exception.InvalidRefreshTokenException;
 import com.flowdesk.auth.repository.RefreshTokenRepository;
-import com.flowdesk.common.exception.DuplicateResourceException;
-import com.flowdesk.common.exception.ResourceNotFoundException;
+import com.flowdesk.shared.exception.DuplicateResourceException;
+import com.flowdesk.shared.exception.ResourceNotFoundException;
 import com.flowdesk.organization.entity.Organization;
 import com.flowdesk.organization.repository.OrganizationRepository;
-import com.flowdesk.security.JwtProperties;
-import com.flowdesk.security.JwtService;
+import com.flowdesk.security.jwt.JwtProperties;
+import com.flowdesk.security.jwt.JwtService;
 import com.flowdesk.user.dto.UserSummaryResponse;
 import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
@@ -182,7 +182,7 @@ public class AuthService {
 
     /**
      * Backs {@code GET /api/auth/me}. Unlike request authentication itself
-     * (see {@link com.flowdesk.security.JwtAuthenticationFilter}), this
+     * (see {@link com.flowdesk.security.jwt.JwtAuthenticationFilter}), this
      * intentionally does read the database: the JWT only carries
      * {@code userId}/{@code organizationId}/{@code email}/{@code role},
      * not the full profile (first/last name) a "who am I" endpoint needs

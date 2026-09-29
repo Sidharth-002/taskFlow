@@ -1,5 +1,6 @@
-package com.flowdesk.security;
+package com.flowdesk.security.jwt;
 
+import com.flowdesk.security.AuthenticatedPrincipal;
 import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
 import io.jsonwebtoken.Claims;

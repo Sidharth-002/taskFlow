@@ -1,6 +1,6 @@
 package com.flowdesk.notification.service;
 
-import com.flowdesk.common.exception.ResourceNotFoundException;
+import com.flowdesk.shared.exception.ResourceNotFoundException;
 import com.flowdesk.notification.dto.NotificationResponse;
 import com.flowdesk.notification.entity.Notification;
 import com.flowdesk.notification.entity.NotificationType;

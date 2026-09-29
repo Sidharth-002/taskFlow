@@ -1,6 +1,6 @@
 package com.flowdesk.ticket.entity;
 
-import com.flowdesk.common.entity.BaseEntity;
+import com.flowdesk.shared.persistence.BaseEntity;
 import com.flowdesk.organization.entity.Organization;
 import com.flowdesk.project.entity.Project;
 import com.flowdesk.team.entity.Team;

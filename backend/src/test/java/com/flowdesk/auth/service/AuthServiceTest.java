@@ -15,12 +15,12 @@ import com.flowdesk.auth.dto.RegisterRequest;
 import com.flowdesk.auth.entity.RefreshToken;
 import com.flowdesk.auth.exception.InvalidRefreshTokenException;
 import com.flowdesk.auth.repository.RefreshTokenRepository;
-import com.flowdesk.common.exception.DuplicateResourceException;
-import com.flowdesk.common.exception.ResourceNotFoundException;
+import com.flowdesk.shared.exception.DuplicateResourceException;
+import com.flowdesk.shared.exception.ResourceNotFoundException;
 import com.flowdesk.organization.entity.Organization;
 import com.flowdesk.organization.repository.OrganizationRepository;
-import com.flowdesk.security.JwtProperties;
-import com.flowdesk.security.JwtService;
+import com.flowdesk.security.jwt.JwtProperties;
+import com.flowdesk.security.jwt.JwtService;
 import com.flowdesk.user.entity.Role;
 import com.flowdesk.user.entity.User;
 import com.flowdesk.user.mapper.UserMapper;
@@ -42,7 +42,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
  * Unit tests for {@link AuthService}, with every collaborator mocked -
  * this exercises the service's own logic (workflow, exception mapping,
  * delegation to Spring Security) in isolation, complementing the full
- * stack coverage in {@code AuthControllerIntegrationTest}.
+ * stack coverage in {@code AuthControllerIT}.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -91,7 +91,7 @@ class AuthServiceTest {
     // returned by the repository after save" without a real database.
     private void setId(Object entity, Long id) {
         try {
-            var field = com.flowdesk.common.entity.BaseEntity.class.getDeclaredField("id");
+            var field = com.flowdesk.shared.persistence.BaseEntity.class.getDeclaredField("id");
             field.setAccessible(true);
             field.set(entity, id);
         } catch (ReflectiveOperationException e) {

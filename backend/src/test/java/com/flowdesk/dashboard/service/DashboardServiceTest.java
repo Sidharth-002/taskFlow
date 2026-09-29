@@ -40,7 +40,7 @@ class DashboardServiceTest {
 
     private void setId(Object entity, Long id) {
         try {
-            var field = com.flowdesk.common.entity.BaseEntity.class.getDeclaredField("id");
+            var field = com.flowdesk.shared.persistence.BaseEntity.class.getDeclaredField("id");
             field.setAccessible(true);
             field.set(entity, id);
         } catch (ReflectiveOperationException e) {
@@ -50,10 +50,10 @@ class DashboardServiceTest {
 
     private void setTimestamps(Ticket ticket, Instant createdAt, Instant updatedAt) {
         try {
-            var created = com.flowdesk.common.entity.BaseEntity.class.getDeclaredField("createdAt");
+            var created = com.flowdesk.shared.persistence.BaseEntity.class.getDeclaredField("createdAt");
             created.setAccessible(true);
             created.set(ticket, createdAt);
-            var updated = com.flowdesk.common.entity.BaseEntity.class.getDeclaredField("updatedAt");
+            var updated = com.flowdesk.shared.persistence.BaseEntity.class.getDeclaredField("updatedAt");
             updated.setAccessible(true);
             updated.set(ticket, updatedAt);
         } catch (ReflectiveOperationException e) {

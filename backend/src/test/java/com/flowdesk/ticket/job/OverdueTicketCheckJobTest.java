@@ -40,7 +40,7 @@ class OverdueTicketCheckJobTest {
 
     private void setId(Object entity, Long id) {
         try {
-            var field = com.flowdesk.common.entity.BaseEntity.class.getDeclaredField("id");
+            var field = com.flowdesk.shared.persistence.BaseEntity.class.getDeclaredField("id");
             field.setAccessible(true);
             field.set(entity, id);
         } catch (ReflectiveOperationException e) {

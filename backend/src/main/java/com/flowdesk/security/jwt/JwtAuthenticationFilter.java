@@ -1,5 +1,7 @@
-package com.flowdesk.security;
+package com.flowdesk.security.jwt;
 
+import com.flowdesk.security.AuthenticatedPrincipal;
+import com.flowdesk.security.handler.RestAuthenticationEntryPoint;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

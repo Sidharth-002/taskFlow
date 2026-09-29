@@ -1,7 +1,7 @@
-package com.flowdesk.security;
+package com.flowdesk.security.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flowdesk.common.exception.ErrorResponse;
+import com.flowdesk.shared.exception.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Produces the same {@link ErrorResponse} JSON shape as
- * {@link com.flowdesk.common.exception.GlobalExceptionHandler} for requests
+ * {@link com.flowdesk.shared.exception.GlobalExceptionHandler} for requests
  * rejected by the Spring Security filter chain itself - a missing or
  * invalid JWT on a protected endpoint - which happens before the request
  * ever reaches a controller, so {@code @RestControllerAdvice} cannot

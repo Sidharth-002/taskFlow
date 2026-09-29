@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
  * would mask real schema/mapping mismatches.
  */
 @IntegrationTest
-class FlowDeskApplicationTests {
+class FlowDeskApplicationIT {
 
     @Test
     void contextLoads() {

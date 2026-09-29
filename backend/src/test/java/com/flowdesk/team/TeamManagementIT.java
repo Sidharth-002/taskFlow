@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.team;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @WebIntegrationTest
 @Transactional
-class TeamManagementIntegrationTest {
+class TeamManagementIT {
 
     @Autowired
     private MockMvc mockMvc;

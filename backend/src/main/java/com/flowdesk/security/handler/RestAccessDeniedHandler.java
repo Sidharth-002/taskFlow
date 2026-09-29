@@ -1,7 +1,7 @@
-package com.flowdesk.security;
+package com.flowdesk.security.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flowdesk.common.exception.ErrorResponse;
+import com.flowdesk.shared.exception.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package com.flowdesk.config;
+package com.flowdesk.shared.messaging;
 
 /**
  * Every ticket domain event (see {@code ticket.event}) is published to

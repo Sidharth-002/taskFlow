@@ -192,7 +192,7 @@ caller who shouldn't see the resource either way.
 Per the plan above, Phase 5 completed two things Phase 4 explicitly
 deferred:
 
-- **`TenantIsolationIntegrationTest`**: the spec's Section 5 guarantee
+- **`TenantIsolationIT`**: the spec's Section 5 guarantee
   ("Organization A cannot access Organization B's data... enforced
   server-side"), made into one explicit, auditable test class covering
   every organization-scoped resource (Project, Ticket, Comment, Team,
@@ -203,7 +203,7 @@ deferred:
   was also the only way to make `TEAM_LEAD`'s ticket-visibility rule
   testable through the *real* API rather than only via directly
   constructed entities in `TicketServiceTest`'s unit tests -
-  `TeamManagementIntegrationTest.teamLead_seesTheirTeamsTickets_throughTheRealApi`
+  `TeamManagementIT.teamLead_seesTheirTeamsTickets_throughTheRealApi`
   proves it end-to-end.
 
 **A real, previously-shipped security gap was also found and fixed:**
@@ -567,7 +567,7 @@ through `V8__create_comments.sql`.
   concurrent `/api/auth/refresh` calls presenting the same token could
   otherwise both read `revoked = false` before either commits its
   rotation, minting two valid sessions from a token meant to be single-use.
-  `RefreshTokenConcurrencyTest` proves this with two genuinely-overlapping
+  `RefreshTokenConcurrencyIT` proves this with two genuinely-overlapping
   transactions (a `CyclicBarrier` forces both to read before either
   writes) rather than just asserting the annotation is present.
 - **`comments` has no `@Version`**, unlike `tickets` and
@@ -584,7 +584,7 @@ through `V8__create_comments.sql`.
   and `createdAt`/`updatedAt` timestamps via Spring Data JPA auditing
   (`@EnableJpaAuditing` in `config.JpaAuditingConfig`) rather than being
   set manually in service code.
-- **Dirty checking.** `DomainEntityMappingTest.ticketVersionIncrementsOnUpdate_dirtyCheckingDemonstration`
+- **Dirty checking.** `DomainEntityMappingIT.ticketVersionIncrementsOnUpdate_dirtyCheckingDemonstration`
   mutates a managed `Ticket` with a plain setter and never calls
   `repository.save()` again — Hibernate detects the change against the
   persistence context's loaded snapshot and issues the `UPDATE` at flush
@@ -599,9 +599,9 @@ through `V8__create_comments.sql`.
 - **Optimistic locking.** `Ticket.version` (`@Version`) is in place since
   Phase 2. `RefreshToken.version`, added in Phase 3, was the first place
   this project actually needed and tested the concurrency guarantee
-  end-to-end (`RefreshTokenConcurrencyTest`, real overlapping
+  end-to-end (`RefreshTokenConcurrencyIT`, real overlapping
   transactions). Phase 6 formalizes the same proof for `Ticket`:
-  `TicketConcurrencyTest` runs two genuinely concurrent transactions
+  `TicketConcurrencyIT` runs two genuinely concurrent transactions
   against the same ticket (both past a `CyclicBarrier` after reading, so
   neither has committed before the other writes) and asserts exactly one
   wins while the other raises `ObjectOptimisticLockingFailureException` -
@@ -641,7 +641,7 @@ through `V8__create_comments.sql`.
   had the same bug. Fixed by using `saveAndFlush` before mapping in all
   three - forcing the flush to happen (and any
   `ObjectOptimisticLockingFailureException` to surface) inside the
-  method, before the response is constructed. `TicketWorkflowIntegrationTest`
+  method, before the response is constructed. `TicketWorkflowIT`
   asserts the exact post-update version as a regression check.
 - **`@Modifying` bulk updates bypass the persistence context - and can
   serve stale cached entities back to you.** Found in Phase 5:
@@ -694,7 +694,7 @@ Ticket search, built dynamic rather than as one fixed query per role
 - **The N+1 fix and the optimistic-locking test formalization** are
   covered above in [Architecture decisions](#architecture-decisions)
   (`@EntityGraph` on `TicketRepository.findAll(Specification, Pageable)`,
-  and `TicketConcurrencyTest`).
+  and `TicketConcurrencyIT`).
 
 ## Redis
 
@@ -742,14 +742,14 @@ project's own integration test suite, which runs dozens of legitimate
 register/login calls against the same shared local Redis instance in one
 run - never trips them by accident. The limiter itself is still verified
 for real, just with its own small, deterministic values, in
-`AuthRateLimitFilterTest`.
+`AuthRateLimitFilterIT`.
 
 ## Kafka
 
 Five ticket domain events - `TicketCreatedEvent`, `TicketAssignedEvent`,
 `TicketStatusChangedEvent`, `TicketClosedEvent` (`ticket.event`), and
 `TicketCommentAddedEvent` (`comment.event`) - all published to the one
-`ticket-events` topic (`config.KafkaTopics`), keyed by ticket ID so every
+`ticket-events` topic (`shared.messaging.KafkaTopics`), keyed by ticket ID so every
 event for the same ticket lands in the same partition and is consumed in
 the order it actually happened. `apache/kafka:3.8.0` in KRaft mode
 (broker + controller combined, no Zookeeper) backs this locally via
@@ -850,22 +850,17 @@ follows:
 
 ## Frontend
 
-A React + TypeScript SPA (`frontend/`, Vite-scaffolded) - intentionally
-simple, per the spec's own framing of the frontend as secondary to the
-backend. It covers register/login, the ticket list (filter + pagination),
-creating a ticket, a ticket's detail view (status changes, comments), and
-notifications. It deliberately does **not** cover team management, user
-management, the dashboard, or audit log viewing - every one of those is
-an admin-only action in the backend with no plain-user equivalent to
-build a simpler UI around, and building admin screens for them wasn't
-judged worth it for a frontend whose own scope is meant to stay small.
-See [`frontend/README.md`](frontend/README.md) for the full breakdown,
-including the two most notable client-side decisions: JWTs kept in
-`localStorage` rather than an httpOnly cookie (simpler, at the cost of
-XSS exposure a cookie would avoid - an accepted trade-off given this
-frontend's scope), and in-flight refresh-token deduplication (two
-requests hitting a 401 at once must not each independently rotate the
-one-time-use refresh token, or whichever loses that race fails).
+A React + TypeScript SPA (`frontend/`, Vite-scaffolded) that covers every
+backend capability in a Jira-style workspace: a drag-and-drop Kanban board
+that enforces the ticket workflow, an issue list and detail view (inline
+editing, assignment, comments, audit-log activity timeline), a reporting
+dashboard, project, team and people management, a notification inbox, and a
+`Ctrl/⌘ K` command palette. Each action is offered only to the roles the
+backend permits. Plain CSS with a dark/light theme and no UI, chart or
+drag-and-drop libraries. See [`frontend/README.md`](frontend/README.md) for
+the page-by-page breakdown and the notable client-side decisions: JWTs in
+`localStorage` rather than an httpOnly cookie, in-flight refresh-token
+deduplication, and why the ticket workflow is now mirrored client-side.
 
 ## Testing
 
@@ -889,7 +884,7 @@ in the annotation instead of being repeated in every file. Most test
 classes share one cached Spring context (and therefore one already-running
 set of containers) for the whole run, since they import the identical
 configuration; a class with its own `@TestPropertySource`
-(`AuthRateLimitFilterTest`) gets a different context key and its own
+(`AuthRateLimitFilterIT`) gets a different context key and its own
 fresh containers - slower for that one class, but no different a
 trade-off than before.
 
@@ -909,16 +904,16 @@ reproducible, not writing new test coverage for its own sake:
   collaborator mocked: registration, login delegation to
   `AuthenticationManager`, refresh token rotation and its rejection
   paths (expired/revoked/unknown/concurrently-rotated), logout.
-- **`AuthControllerIntegrationTest`** (MockMvc, real Spring Security
+- **`AuthControllerIT`** (MockMvc, real Spring Security
   filter chain) - the full HTTP-level flow: registration, duplicate
   email, validation errors, wrong-password rejection, the JWT-protected
   `/me` endpoint with and without a token, refresh rotation (including
   that a rotated-away token is rejected on reuse), and logout.
-- **`RefreshTokenConcurrencyTest`** - two real, genuinely-overlapping
+- **`RefreshTokenConcurrencyIT`** - two real, genuinely-overlapping
   database transactions racing to rotate the same refresh token, proving
   the optimistic lock actually prevents a double-issue rather than just
   asserting `@Version` is present.
-- **`DomainEntityMappingTest`** (Phase 2) - entity relationships,
+- **`DomainEntityMappingIT`** (Phase 2) - entity relationships,
   DB-level constraints, dirty checking.
 - **`TicketWorkflowTest`** - exhaustively checks every `(from, to)`
   status pair against the documented transition graph, not just a few
@@ -928,7 +923,7 @@ reproducible, not writing new test coverage for its own sake:
   workflow validation, reassignment authorization, tenant scoping.
 - **`ProjectServiceTest`**, **`CommentServiceTest`** - tenant scoping,
   ownership rules (edit own comment only; `ORG_ADMIN` delete override).
-- **`TicketWorkflowIntegrationTest`** (MockMvc, real security filter
+- **`TicketWorkflowIT`** (MockMvc, real security filter
   chain) - full lifecycle (create → assign → transition → comment),
   invalid transition → 409, cross-org access → 404 (not 403), role-based
   update/delete rejections → 403, role-scoped list visibility, comment
@@ -939,46 +934,46 @@ reproducible, not writing new test coverage for its own sake:
   (can't deactivate/demote yourself), `SUPER_ADMIN` rejection, tenant
   scoping, row-level "only this team's lead" authorization for member
   management.
-- **`TenantIsolationIntegrationTest`** - the spec's Section 5 guarantee
+- **`TenantIsolationIT`** - the spec's Section 5 guarantee
   as one explicit test class: cross-organization access denied (404) for
   every resource type - Project, Ticket, Comment, Team, User - plus that
   `GET /api/users` never leaks another organization's users and that
   ticket creation rejects a project ID from a different organization.
-- **`UserManagementIntegrationTest`** - the Phase 5 security-gap fix,
+- **`UserManagementIT`** - the Phase 5 security-gap fix,
   end-to-end: deactivating a user immediately kills their existing
   refresh token *and* blocks fresh login; reactivating restores login;
   changing role revokes existing tokens too; self-lockout and
   `SUPER_ADMIN`-assignment are rejected; a non-admin can't deactivate
   anyone.
-- **`TeamManagementIntegrationTest`** - full team lifecycle (create,
+- **`TeamManagementIT`** - full team lifecycle (create,
   assign lead, add/remove members) through real HTTP, a `TEAM_LEAD`
   managing their own team's members but rejected (403) for another
   team's, and the payoff: `TEAM_LEAD` ticket visibility (Section 6)
   proven through the real API now that a lead can actually be assigned,
   not just constructed directly in a unit test.
-- **`TicketConcurrencyTest`** (Phase 6) - the same real-overlapping-
-  transactions proof `RefreshTokenConcurrencyTest` established for
+- **`TicketConcurrencyIT`** (Phase 6) - the same real-overlapping-
+  transactions proof `RefreshTokenConcurrencyIT` established for
   refresh token rotation, applied to `Ticket`: two concurrent updates to
   the same ticket, exactly one wins, the other raises
   `ObjectOptimisticLockingFailureException`.
 
-`TicketServiceTest`'s list test and `TicketWorkflowIntegrationTest`'s list
+`TicketServiceTest`'s list test and `TicketWorkflowIT`'s list
 assertions were updated for Phase 6's `Specification`-based search
 (`TicketRepository.findAll(Specification, Pageable)` replacing the four
 fixed per-role query methods) rather than adding a separate test class -
 the role-visibility matrix they already covered didn't change, only how
 it's expressed at the repository layer.
-- **`RateLimiterServiceTest`** (Phase 7) - the fixed-window counter
+- **`RateLimiterServiceIT`** (Phase 7) - the fixed-window counter
   against real Redis: exactly `capacity` requests succeed per key within
   the window, the next is rejected, a window reset allows more through,
   and independent keys never share a counter.
-- **`AuthRateLimitFilterTest`** (Phase 7, MockMvc through the real
+- **`AuthRateLimitFilterIT`** (Phase 7, MockMvc through the real
   security filter chain) - proves the filter is actually wired in front
   of `register`/`login`, returns `429` with a `Retry-After` header and
   the right error code once a small, test-specific capacity
   (`@TestPropertySource`) is exceeded, and that separate endpoints'
   buckets don't leak into each other.
-- **`CachingIntegrationTest`** (Phase 7) - proves `getById` is a genuine
+- **`CachingIT`** (Phase 7) - proves `getById` is a genuine
   Redis-backed cache, not just a compiling annotation: a row changed
   directly through the repository (bypassing the service, and therefore
   its `@CacheEvict`) is invisible on the next `getById` until a call
@@ -989,7 +984,7 @@ it's expressed at the repository layer.
   reassignment or a title-only edit must not fire a spurious
   `TicketAssignedEvent`/`TicketStatusChangedEvent`) is published for
   create/assign/status-change/close/comment.
-- **`KafkaEventFlowIntegrationTest`** (Phase 8, real Kafka broker, real
+- **`KafkaEventFlowIT`** (Phase 8, real Kafka broker, real
   HTTP calls through MockMvc) - the full pipeline end-to-end: creating,
   assigning, commenting on, and closing a ticket each eventually produces
   the right `Notification`/`AuditLog` rows, polled for asynchronously
@@ -1002,16 +997,16 @@ it's expressed at the repository layer.
   isolation: status/priority breakdowns, unassigned/overdue counts, and
   the 7-day created/closed windows, including that `RESOLVED`/`CLOSED`
   tickets never count as overdue regardless of `dueDate`.
-- **`DashboardIntegrationTest`** (Phase 9, MockMvc) - the wiring around
+- **`DashboardIT`** (Phase 9, MockMvc) - the wiring around
   that arithmetic: `AGENT`/`USER` get `403`, an `ORG_ADMIN` sees org-wide
   counts, and a `TEAM_LEAD` sees only their own team's tickets - the same
-  visibility split `TeamManagementIntegrationTest` proves for the ticket
+  visibility split `TeamManagementIT` proves for the ticket
   list itself.
 - **`OverdueTicketCheckJobTest`/`RefreshTokenCleanupJobTest`** (Phase 9) -
   each job's query/publish logic in isolation, including that the overdue
   job's exclusion list is exactly `RESOLVED`/`CLOSED` and that a run with
   nothing to do publishes nothing.
-- **`OverdueTicketCheckJobIntegrationTest`** (Phase 9, real Kafka broker) -
+- **`OverdueTicketCheckJobIT`** (Phase 9, real Kafka broker) -
   calls the job directly (not via its real cron trigger - see the job's
   Javadoc), proving a genuinely overdue ticket produces exactly one
   `Notification` and one `AuditLog` entry, and that running the job again
@@ -1024,11 +1019,11 @@ not adding new coverage. All 141 pre-existing tests were verified to
 still pass identically against Testcontainers, including a full run with
 `docker compose down` first - proving none of them secretly still
 depended on the shared dev services.
-- **`CorrelationIdFilterTest`** (Phase 11) - a fresh UUID is generated and
+- **`CorrelationIdFilterIT`** (Phase 11) - a fresh UUID is generated and
   returned when the caller doesn't supply one, an incoming
   `X-Correlation-Id` is echoed back unchanged, and two separate requests
   never get the same generated ID.
-- **`OpenApiIntegrationTest`** (Phase 11) - `/v3/api-docs` and
+- **`OpenApiIT`** (Phase 11) - `/v3/api-docs` and
   `/swagger-ui/index.html` are both reachable without authentication (the
   `permitAll` rule in `SecurityConfig`), and the generated schema actually
   contains `OpenApiConfig`'s metadata and security scheme, not just a 200
@@ -1093,13 +1088,18 @@ default CORS configuration.
 
 ```bash
 cd backend
-./mvnw test
+./mvnw test     # unit tests only (*Test, Surefire) - fast, no Docker needed
+./mvnw verify   # unit + integration tests (*IT, Failsafe) - needs Docker
 ```
 
-No `docker compose up` needed first (Phase 10) - every integration test
-runs against its own ephemeral Testcontainers Postgres/Kafka/Redis. The
-only prerequisite is a running Docker daemon, since Testcontainers still
-needs one to start those containers in.
+Tests are split by naming convention: `*Test` classes are plain unit
+tests (Mockito, no Spring context) and `*IT` classes boot the application
+against Testcontainers. Both live in the package of the feature they
+cover, mirroring `src/main`. No `docker compose up` needed first (Phase
+10) - every integration test runs against its own ephemeral Testcontainers
+Postgres/Kafka/Redis. The only prerequisite for `verify` is a running
+Docker daemon, since Testcontainers still needs one to start those
+containers in.
 
 ## API documentation
 
@@ -1124,7 +1124,7 @@ them flat.
 
 ## Observability and operations
 
-**Correlation IDs.** `common.CorrelationIdFilter` populates a
+**Correlation IDs.** `shared.web.CorrelationIdFilter` populates a
 `correlationId` MDC key for every request - reusing an incoming
 `X-Correlation-Id` header if the caller (or an upstream gateway) already
 supplied one, generating a fresh UUID otherwise - and echoes it back on
@@ -1326,7 +1326,8 @@ This project is built incrementally, one phase at a time, each verified
 - [x] **Phase 9** — Dashboard (`GET /api/dashboard/summary`, role-scoped, Redis-cached) + scheduled jobs (overdue ticket detection via a domain event, expired refresh token cleanup)
 - [x] **Phase 10** — Testing (every integration test migrated to ephemeral Testcontainers Postgres/Kafka/Redis, a real `test` profile, hermetic - no `docker compose up` needed to run the suite)
 - [x] **Phase 11** — Production readiness (correlation IDs, structured JSON logging in prod, `/actuator/info` build metadata, GitHub Actions CI, OpenAPI/Swagger UI)
-- [x] **Phase 12** — React frontend (register/login, ticket list/detail/create, comments, notifications - intentionally simple, see [Frontend](#frontend))
+- [x] **Phase 12** — React frontend (register/login, ticket list/detail/create, comments, notifications)
+- [x] **Phase 13** — Jira-style UI (Kanban board, dashboard, projects/teams/people management, activity timeline, command palette, dark/light theme - see [Frontend](#frontend))
 
 ## Repository layout
 
@@ -1338,3 +1339,26 @@ flowdesk/
 ├── .env.example        Environment variable template
 └── .github/workflows/  CI pipeline (ci.yml)
 ```
+
+Backend packages (`backend/src/main/java/com/flowdesk`) are organized by
+feature, with cross-cutting code kept out of the feature packages:
+
+```
+com.flowdesk
+├── auth, user, organization, team, project,     one package per feature, each
+│   ticket, comment, notification, audit,        with controller/ service/
+│   dashboard                                    repository/ entity/ dto/ mapper/
+├── shared/
+│   ├── exception/     ErrorResponse, GlobalExceptionHandler, base exceptions
+│   ├── persistence/   BaseEntity
+│   ├── messaging/     KafkaTopics
+│   └── web/           CorrelationIdFilter
+├── security/          SecurityConfig, AuthenticatedPrincipal, UserDetailsService
+│   ├── jwt/           JwtService, JwtProperties, JwtAuthenticationFilter
+│   ├── handler/       401/403 JSON responders
+│   └── ratelimit/     Redis-backed auth rate limiting
+└── config/            @Configuration only (cache, JPA auditing, OpenAPI, scheduling)
+```
+
+Tests mirror this layout; see [Running tests](#running-tests) for the
+`*Test` / `*IT` split.

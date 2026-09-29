@@ -1,4 +1,4 @@
-package com.flowdesk.common.exception;
+package com.flowdesk.shared.exception;
 
 import com.flowdesk.auth.exception.InvalidRefreshTokenException;
 import com.flowdesk.ticket.exception.InvalidTicketTransitionException;
@@ -26,8 +26,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * authorization failures raised earlier, in the Spring Security filter
  * chain (a missing/invalid JWT, or {@code anyRequest().authenticated()}
  * rejecting an unauthenticated request), never reach this class - those
- * are handled by {@link com.flowdesk.security.RestAuthenticationEntryPoint}
- * and {@link com.flowdesk.security.RestAccessDeniedHandler}, which produce
+ * are handled by {@link com.flowdesk.security.handler.RestAuthenticationEntryPoint}
+ * and {@link com.flowdesk.security.handler.RestAccessDeniedHandler}, which produce
  * the same {@link ErrorResponse} shape from outside the dispatcher.
  */
 @RestControllerAdvice

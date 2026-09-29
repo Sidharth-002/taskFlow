@@ -1,4 +1,4 @@
-package com.flowdesk.common.entity;
+package com.flowdesk.shared.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;

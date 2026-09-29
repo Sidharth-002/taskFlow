@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.ticket.job;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -29,13 +29,13 @@ import org.springframework.test.web.servlet.MvcResult;
  * <p>{@code job.run()} is called directly rather than waiting for its real
  * cron trigger - deterministic and immediate, and exactly what the job's
  * own Javadoc says it's designed for. Not {@code @Transactional} for the
- * same reason as {@code KafkaEventFlowIntegrationTest}: the job's
+ * same reason as {@code KafkaEventFlowIT}: the job's
  * {@code @Transactional} method needs to actually commit for
  * {@code TicketEventKafkaRelay} (which only relays {@code AFTER_COMMIT})
  * to fire.
  */
 @WebIntegrationTest
-class OverdueTicketCheckJobIntegrationTest {
+class OverdueTicketCheckJobIT {
 
     @Autowired
     private MockMvc mockMvc;

@@ -1,4 +1,4 @@
-package com.flowdesk.common.exception;
+package com.flowdesk.shared.exception;
 
 /**
  * The caller is authenticated and the resource exists, but it belongs to a

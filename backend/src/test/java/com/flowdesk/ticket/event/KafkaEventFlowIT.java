@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.ticket.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -36,14 +36,14 @@ import org.springframework.test.web.servlet.MvcResult;
  * actually commit - and {@code TicketEventKafkaRelay} only relays an event
  * {@code AFTER_COMMIT}. Proving this pipeline for real requires the same
  * genuinely-committed-transactions approach as
- * {@code RefreshTokenConcurrencyTest}/{@code TicketConcurrencyTest}.
+ * {@code RefreshTokenConcurrencyIT}/{@code TicketConcurrencyIT}.
  *
  * <p>Consumption is asynchronous, so every assertion here polls with a
  * bounded timeout rather than asserting immediately after the triggering
  * HTTP call returns.
  */
 @WebIntegrationTest
-class KafkaEventFlowIntegrationTest {
+class KafkaEventFlowIT {
 
     @Autowired
     private MockMvc mockMvc;

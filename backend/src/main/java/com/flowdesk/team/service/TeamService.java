@@ -2,9 +2,9 @@ package com.flowdesk.team.service;
 
 import static com.flowdesk.config.CacheConfig.TEAMS_CACHE;
 
-import com.flowdesk.common.exception.ResourceNotFoundException;
-import com.flowdesk.common.exception.TenantAccessDeniedException;
-import com.flowdesk.common.exception.UnauthorizedOperationException;
+import com.flowdesk.shared.exception.ResourceNotFoundException;
+import com.flowdesk.shared.exception.TenantAccessDeniedException;
+import com.flowdesk.shared.exception.UnauthorizedOperationException;
 import com.flowdesk.organization.entity.Organization;
 import com.flowdesk.organization.repository.OrganizationRepository;
 import com.flowdesk.security.AuthenticatedPrincipal;

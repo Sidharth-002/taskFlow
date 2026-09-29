@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.auth;
 
 import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.not;
@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @WebIntegrationTest
 @Transactional
-class AuthControllerIntegrationTest {
+class AuthControllerIT {
 
     @Autowired
     private MockMvc mockMvc;

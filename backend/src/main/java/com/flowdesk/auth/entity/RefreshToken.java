@@ -1,6 +1,6 @@
 package com.flowdesk.auth.entity;
 
-import com.flowdesk.common.entity.BaseEntity;
+import com.flowdesk.shared.persistence.BaseEntity;
 import com.flowdesk.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

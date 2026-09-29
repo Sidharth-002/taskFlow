@@ -1,6 +1,6 @@
 package com.flowdesk.audit.entity;
 
-import com.flowdesk.common.entity.BaseEntity;
+import com.flowdesk.shared.persistence.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;

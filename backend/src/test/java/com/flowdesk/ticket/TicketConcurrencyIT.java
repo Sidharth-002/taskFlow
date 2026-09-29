@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.ticket;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,20 +31,20 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Formalizes {@link Ticket}'s {@code @Version} guarantee (see its Javadoc)
  * with the same real, two-thread, two-transaction proof
- * {@code RefreshTokenConcurrencyTest} uses for refresh token rotation:
+ * {@code RefreshTokenConcurrencyIT} uses for refresh token rotation:
  * two agents concurrently editing the same ticket (one reassigning it,
  * one changing its status) must not silently overwrite one another - the
  * second writer must lose with an optimistic locking failure instead of
  * both succeeding.
  *
  * <p>Deliberately not wrapped in {@code @Transactional} for the same
- * reason as {@code RefreshTokenConcurrencyTest}: exercising a genuine race
+ * reason as {@code RefreshTokenConcurrencyIT}: exercising a genuine race
  * needs two independently committed transactions on two separate
  * connections. Left-over rows are harmless, isolated by a random
  * organization/users created just for this test.
  */
 @IntegrationTest
-class TicketConcurrencyTest {
+class TicketConcurrencyIT {
 
     @Autowired
     private OrganizationRepository organizationRepository;
@@ -106,7 +106,7 @@ class TicketConcurrencyTest {
         try {
             List<Future<Boolean>> results = executor.invokeAll(List.of(updateAttempt, updateAttempt));
             long successes = results.stream()
-                    .map(TicketConcurrencyTest::getUnchecked)
+                    .map(TicketConcurrencyIT::getUnchecked)
                     .filter(Boolean::booleanValue)
                     .count();
 

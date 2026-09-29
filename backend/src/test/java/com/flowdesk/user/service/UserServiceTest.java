@@ -8,8 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.flowdesk.auth.service.AuthService;
-import com.flowdesk.common.exception.DuplicateResourceException;
-import com.flowdesk.common.exception.ResourceNotFoundException;
+import com.flowdesk.shared.exception.DuplicateResourceException;
+import com.flowdesk.shared.exception.ResourceNotFoundException;
 import com.flowdesk.organization.entity.Organization;
 import com.flowdesk.organization.repository.OrganizationRepository;
 import com.flowdesk.security.AuthenticatedPrincipal;
@@ -49,7 +49,7 @@ class UserServiceTest {
 
     private void setId(Object entity, Long id) {
         try {
-            var field = com.flowdesk.common.entity.BaseEntity.class.getDeclaredField("id");
+            var field = com.flowdesk.shared.persistence.BaseEntity.class.getDeclaredField("id");
             field.setAccessible(true);
             field.set(entity, id);
         } catch (ReflectiveOperationException e) {

@@ -1,6 +1,6 @@
 package com.flowdesk.comment.entity;
 
-import com.flowdesk.common.entity.BaseEntity;
+import com.flowdesk.shared.persistence.BaseEntity;
 import com.flowdesk.ticket.entity.Ticket;
 import com.flowdesk.user.entity.User;
 import jakarta.persistence.Column;

@@ -1,6 +1,6 @@
 package com.flowdesk.ticket.event;
 
-import com.flowdesk.config.KafkaTopics;
+import com.flowdesk.shared.messaging.KafkaTopics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;

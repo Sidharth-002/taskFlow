@@ -36,7 +36,7 @@ import org.testcontainers.utility.DockerImageName;
  * exact same configuration with the exact same active profile, so most of
  * them share one cached context - and therefore one set of already-running
  * containers - for the whole test run. A class that adds its own
- * {@code @TestPropertySource} (e.g. {@code AuthRateLimitFilterTest}) gets
+ * {@code @TestPropertySource} (e.g. {@code AuthRateLimitFilterIT}) gets
  * a different context key and therefore its own fresh containers - slower
  * for that one class, but correct, and not a new trade-off Testcontainers
  * introduced (the same context-splitting already happened against the

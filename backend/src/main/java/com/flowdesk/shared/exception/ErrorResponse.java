@@ -1,4 +1,4 @@
-package com.flowdesk.common.exception;
+package com.flowdesk.shared.exception;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;

@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class UserMapper {
-
     public UserSummaryResponse toSummary(User user) {
         return new UserSummaryResponse(
                 user.getId(),

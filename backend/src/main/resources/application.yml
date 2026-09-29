@@ -67,9 +67,9 @@ app:
     refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:7d}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
-  # Distributed (Redis-backed - see ratelimit.RateLimiterService) fixed-
+  # Distributed (Redis-backed - see security.ratelimit.RateLimiterService) fixed-
   # window rate limits per client IP, applied only to /api/auth/** by
-  # ratelimit.AuthRateLimitFilter. login/refresh are the more permissive
+  # security.ratelimit.AuthRateLimitFilter. login/refresh are the more permissive
   # ones since a legitimate user can retry a typo'd password or refresh
   # from several open tabs; register is the tightest since it's the
   # cheapest way to spam-create organizations.
@@ -114,5 +114,5 @@ management:
 logging:
   pattern:
     # correlationId is populated by a request filter added in a later phase
-    # (see common/CorrelationIdFilter) via MDC.
+    # (see shared.web.CorrelationIdFilter) via MDC.
     level: "%5p [%X{correlationId:-}]"

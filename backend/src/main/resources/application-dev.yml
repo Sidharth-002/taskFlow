@@ -29,7 +29,7 @@ app:
   # this profile) making dozens of legitimate register/login/refresh
   # calls against the same shared local Redis instance in quick
   # succession. Rate limiting itself is still exercised for real - see
-  # AuthRateLimitFilterTest, which overrides these to a small,
+  # AuthRateLimitFilterIT, which overrides these to a small,
   # deterministic value for exactly that purpose.
   rate-limit:
     register:

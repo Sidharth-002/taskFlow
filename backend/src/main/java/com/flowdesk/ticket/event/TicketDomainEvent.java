@@ -7,7 +7,7 @@ import java.time.Instant;
  * {@link TicketCreatedEvent}, {@link TicketAssignedEvent},
  * {@link TicketStatusChangedEvent}, {@link TicketClosedEvent}, and
  * {@code comment.event.TicketCommentAddedEvent}. All five are published
- * to the same Kafka topic ({@link com.flowdesk.config.KafkaTopics}) and
+ * to the same Kafka topic ({@link com.flowdesk.shared.messaging.KafkaTopics}) and
  * consumed generically by both {@code notification} and {@code audit} -
  * this interface is what lets a {@code @KafkaListener} method accept any
  * of them with one signature, with the concrete type resolved from the

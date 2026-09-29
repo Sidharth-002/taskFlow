@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.shared.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @IntegrationTest
 @Transactional // each test rolls back, so tests don't leak data into each other
-class DomainEntityMappingTest {
+class DomainEntityMappingIT {
 
     @Autowired
     private OrganizationRepository organizationRepository;

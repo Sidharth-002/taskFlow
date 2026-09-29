@@ -2,7 +2,7 @@ package com.flowdesk.audit.listener;
 
 import com.flowdesk.audit.service.AuditService;
 import com.flowdesk.comment.event.TicketCommentAddedEvent;
-import com.flowdesk.config.KafkaTopics;
+import com.flowdesk.shared.messaging.KafkaTopics;
 import com.flowdesk.ticket.event.TicketAssignedEvent;
 import com.flowdesk.ticket.event.TicketClosedEvent;
 import com.flowdesk.ticket.event.TicketCreatedEvent;

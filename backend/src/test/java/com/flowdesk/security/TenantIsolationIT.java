@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.security;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @WebIntegrationTest
 @Transactional
-class TenantIsolationIntegrationTest {
+class TenantIsolationIT {
 
     @Autowired
     private MockMvc mockMvc;

@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.user;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @WebIntegrationTest
 @Transactional
-class UserManagementIntegrationTest {
+class UserManagementIT {
 
     @Autowired
     private MockMvc mockMvc;

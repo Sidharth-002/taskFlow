@@ -33,12 +33,14 @@ jobs:
         working-directory: backend
         run: ./mvnw -B -ntp clean verify
 
-      - name: Upload surefire reports
+      - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: surefire-reports
-          path: backend/target/surefire-reports/
+          name: test-reports
+          path: |
+            backend/target/surefire-reports/
+            backend/target/failsafe-reports/
           retention-days: 7
 
   build-frontend:

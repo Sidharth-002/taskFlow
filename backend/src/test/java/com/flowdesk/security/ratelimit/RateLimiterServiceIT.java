@@ -1,4 +1,4 @@
-package com.flowdesk.ratelimit;
+package com.flowdesk.security.ratelimit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -18,7 +18,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * verify.
  */
 @IntegrationTest
-class RateLimiterServiceTest {
+class RateLimiterServiceIT {
 
     @Autowired
     private RateLimiterService rateLimiterService;

@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.security.ratelimit;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -47,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
         "app.rate-limit.login.window=10s"
 })
 @Transactional
-class AuthRateLimitFilterTest {
+class AuthRateLimitFilterIT {
 
     @Autowired
     private MockMvc mockMvc;

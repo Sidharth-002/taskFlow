@@ -1,4 +1,4 @@
-package com.flowdesk.common;
+package com.flowdesk.shared.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -17,7 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * ({@code /actuator/health}) so no auth setup is needed to exercise it.
  */
 @WebIntegrationTest
-class CorrelationIdFilterTest {
+class CorrelationIdFilterIT {
 
     @Autowired
     private MockMvc mockMvc;

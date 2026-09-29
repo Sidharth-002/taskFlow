@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
  * all.
  */
 @IntegrationTest
-class CachingIntegrationTest {
+class CachingIT {
 
     @Autowired
     private ProjectService projectService;

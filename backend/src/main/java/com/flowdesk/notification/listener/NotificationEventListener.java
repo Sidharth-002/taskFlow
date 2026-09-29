@@ -1,7 +1,7 @@
 package com.flowdesk.notification.listener;
 
 import com.flowdesk.comment.event.TicketCommentAddedEvent;
-import com.flowdesk.config.KafkaTopics;
+import com.flowdesk.shared.messaging.KafkaTopics;
 import com.flowdesk.notification.entity.NotificationType;
 import com.flowdesk.notification.service.NotificationService;
 import com.flowdesk.ticket.entity.Ticket;

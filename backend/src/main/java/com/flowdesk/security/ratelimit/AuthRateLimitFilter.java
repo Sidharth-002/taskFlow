@@ -1,7 +1,7 @@
-package com.flowdesk.ratelimit;
+package com.flowdesk.security.ratelimit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flowdesk.common.exception.ErrorResponse;
+import com.flowdesk.shared.exception.ErrorResponse;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

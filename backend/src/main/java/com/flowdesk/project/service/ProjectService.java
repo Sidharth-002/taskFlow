@@ -2,8 +2,8 @@ package com.flowdesk.project.service;
 
 import static com.flowdesk.config.CacheConfig.PROJECTS_CACHE;
 
-import com.flowdesk.common.exception.ResourceNotFoundException;
-import com.flowdesk.common.exception.TenantAccessDeniedException;
+import com.flowdesk.shared.exception.ResourceNotFoundException;
+import com.flowdesk.shared.exception.TenantAccessDeniedException;
 import com.flowdesk.organization.entity.Organization;
 import com.flowdesk.organization.repository.OrganizationRepository;
 import com.flowdesk.project.dto.CreateProjectRequest;

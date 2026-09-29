@@ -3,8 +3,8 @@ package com.flowdesk.user.service;
 import static com.flowdesk.config.CacheConfig.USERS_CACHE;
 
 import com.flowdesk.auth.service.AuthService;
-import com.flowdesk.common.exception.DuplicateResourceException;
-import com.flowdesk.common.exception.ResourceNotFoundException;
+import com.flowdesk.shared.exception.DuplicateResourceException;
+import com.flowdesk.shared.exception.ResourceNotFoundException;
 import com.flowdesk.organization.entity.Organization;
 import com.flowdesk.organization.repository.OrganizationRepository;
 import com.flowdesk.security.AuthenticatedPrincipal;

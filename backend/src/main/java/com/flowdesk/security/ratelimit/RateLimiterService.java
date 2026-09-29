@@ -1,4 +1,4 @@
-package com.flowdesk.ratelimit;
+package com.flowdesk.security.ratelimit;
 
 import java.time.Duration;
 import java.util.List;

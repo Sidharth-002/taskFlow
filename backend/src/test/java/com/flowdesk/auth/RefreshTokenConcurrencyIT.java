@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,7 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * a random organization/user created just for this test.
  */
 @IntegrationTest
-class RefreshTokenConcurrencyTest {
+class RefreshTokenConcurrencyIT {
 
     @Autowired
     private OrganizationRepository organizationRepository;
@@ -91,7 +91,7 @@ class RefreshTokenConcurrencyTest {
         try {
             List<Future<Boolean>> results = executor.invokeAll(List.of(rotateAttempt, rotateAttempt));
             long successes = results.stream()
-                    .map(RefreshTokenConcurrencyTest::getUnchecked)
+                    .map(RefreshTokenConcurrencyIT::getUnchecked)
                     .filter(Boolean::booleanValue)
                     .count();
 

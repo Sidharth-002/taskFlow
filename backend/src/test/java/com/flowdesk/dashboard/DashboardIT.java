@@ -1,4 +1,4 @@
-package com.flowdesk.integration;
+package com.flowdesk.dashboard;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -22,14 +22,14 @@ import org.springframework.transaction.annotation.Transactional;
  * role gating ({@code ORG_ADMIN}/{@code TEAM_LEAD} only), org-wide counts
  * for {@code ORG_ADMIN}, and {@code TEAM_LEAD} seeing only their own
  * team's tickets - the same visibility split
- * {@code TeamManagementIntegrationTest} proves for the ticket list itself.
+ * {@code TeamManagementIT} proves for the ticket list itself.
  * {@code DashboardServiceTest} already covers the aggregation arithmetic
  * in isolation; this proves the wiring (role gate, visibility scoping)
  * around it.
  */
 @WebIntegrationTest
 @Transactional
-class DashboardIntegrationTest {
+class DashboardIT {
 
     @Autowired
     private MockMvc mockMvc;

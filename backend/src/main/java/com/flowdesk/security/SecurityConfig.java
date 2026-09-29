@@ -1,9 +1,13 @@
 package com.flowdesk.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flowdesk.ratelimit.AuthRateLimitFilter;
-import com.flowdesk.ratelimit.RateLimitProperties;
-import com.flowdesk.ratelimit.RateLimiterService;
+import com.flowdesk.security.handler.RestAccessDeniedHandler;
+import com.flowdesk.security.handler.RestAuthenticationEntryPoint;
+import com.flowdesk.security.jwt.JwtAuthenticationFilter;
+import com.flowdesk.security.jwt.JwtService;
+import com.flowdesk.security.ratelimit.AuthRateLimitFilter;
+import com.flowdesk.security.ratelimit.RateLimitProperties;
+import com.flowdesk.security.ratelimit.RateLimiterService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

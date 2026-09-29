@@ -30,7 +30,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      * changed underneath it, and a plain query by a non-ID field like
      * {@code findByTokenHash} would return that stale managed instance
      * rather than the fresh row. Found via
-     * {@code UserManagementIntegrationTest.changingRole_revokesExistingRefreshToken}:
+     * {@code UserManagementIT.changingRole_revokesExistingRefreshToken}:
      * without {@code clearAutomatically}, a refresh attempt with the
      * old token right after a role change wrongly succeeded (200
      * instead of 401), because the token object loaded earlier in the

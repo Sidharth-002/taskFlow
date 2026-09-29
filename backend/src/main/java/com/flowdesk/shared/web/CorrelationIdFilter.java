@@ -1,4 +1,4 @@
-package com.flowdesk.common;
+package com.flowdesk.shared.web;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

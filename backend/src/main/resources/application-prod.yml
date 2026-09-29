@@ -36,7 +36,7 @@ management:
 # Elastic Common Schema JSON on stdout - a real deployment's log
 # aggregator (e.g. an ELK/Elasticsearch stack) parses structured fields
 # directly instead of regex-scraping a human-readable line, and MDC
-# entries (correlationId - see common.CorrelationIdFilter) are included as
+# entries (correlationId - see shared.web.CorrelationIdFilter) are included as
 # fields automatically. Left as the default human-readable pattern in dev
 # and test, where a developer is reading logs directly in a terminal.
 logging:

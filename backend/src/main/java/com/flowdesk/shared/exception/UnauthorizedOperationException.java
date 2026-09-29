@@ -1,4 +1,4 @@
-package com.flowdesk.common.exception;
+package com.flowdesk.shared.exception;
 
 /**
  * The caller is authenticated, and would generally be allowed to call this

@@ -11,8 +11,8 @@ import com.flowdesk.comment.entity.Comment;
 import com.flowdesk.comment.event.TicketCommentAddedEvent;
 import com.flowdesk.comment.mapper.CommentMapper;
 import com.flowdesk.comment.repository.CommentRepository;
-import com.flowdesk.common.exception.TenantAccessDeniedException;
-import com.flowdesk.common.exception.UnauthorizedOperationException;
+import com.flowdesk.shared.exception.TenantAccessDeniedException;
+import com.flowdesk.shared.exception.UnauthorizedOperationException;
 import com.flowdesk.organization.entity.Organization;
 import com.flowdesk.security.AuthenticatedPrincipal;
 import com.flowdesk.ticket.entity.Ticket;
@@ -52,7 +52,7 @@ class CommentServiceTest {
 
     private void setId(Object entity, Long id) {
         try {
-            var field = com.flowdesk.common.entity.BaseEntity.class.getDeclaredField("id");
+            var field = com.flowdesk.shared.persistence.BaseEntity.class.getDeclaredField("id");
             field.setAccessible(true);
             field.set(entity, id);
         } catch (ReflectiveOperationException e) {

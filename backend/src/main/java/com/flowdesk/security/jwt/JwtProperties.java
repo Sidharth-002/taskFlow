@@ -1,4 +1,4 @@
-package com.flowdesk.security;
+package com.flowdesk.security.jwt;
 
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
