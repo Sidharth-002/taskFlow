@@ -13,27 +13,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Finds tickets whose {@code dueDate} has passed while they're still open
- * and publishes a {@link TicketOverdueEvent} for each - picked up by the
- * same {@code NotificationEventListener}/{@code AuditEventListener} that
- * handle every other ticket domain event (Phase 8), rather than this job
- * writing notifications/audit rows itself. Runs on
- * {@code app.scheduling.overdue-ticket-check-cron} (hourly by default -
- * see {@code application.yml}).
- *
- * <p>{@code run()} is a plain public method, called by {@code @Scheduled}
- * but also callable directly - tests invoke it directly rather than
- * waiting on a real cron trigger, the same reasoning
- * {@code AuthService.revokeAllTokensForUser} being independently callable
- * follows.
- */
 @Component
 public class OverdueTicketCheckJob {
 
     private static final Logger log = LoggerFactory.getLogger(OverdueTicketCheckJob.class);
 
-    /** A ticket in either of these terminal-for-this-purpose states is never "overdue" regardless of its due date. */
     private static final List<TicketStatus> EXCLUDED_STATUSES = List.of(TicketStatus.RESOLVED, TicketStatus.CLOSED);
 
     private final TicketRepository ticketRepository;
@@ -53,10 +37,6 @@ public class OverdueTicketCheckJob {
         for (Ticket ticket : overdue) {
             eventPublisher.publish(new TicketOverdueEvent(
                     ticket.getId(), ticket.getOrganization().getId(), ticket.getDueDate(), now));
-            // No explicit save: `ticket` is a managed entity within this
-            // transaction (loaded by the repository query above), so
-            // Hibernate's dirty checking persists this at flush/commit
-            // time - the same pattern used throughout the service layer.
             ticket.setOverdueNotifiedAt(now);
         }
 

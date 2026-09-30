@@ -8,7 +8,7 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.5.3</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
 
 	<groupId>com.flowdesk</groupId>
@@ -22,13 +22,11 @@
 	</properties>
 
 	<dependencies>
-		<!-- Web -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 
-		<!-- Persistence -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -47,17 +45,11 @@
 			<artifactId>flyway-database-postgresql</artifactId>
 		</dependency>
 
-		<!-- Security -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 
-		<!-- JWT issuance/validation for self-signed access tokens. Not using
-		     spring-boot-starter-oauth2-resource-server, which is built for
-		     validating tokens issued by an external identity provider (via
-		     a JWKS endpoint) - FlowDesk issues its own tokens, so a direct
-		     JWT library is the right fit. -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -76,72 +68,49 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Validation -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 
-		<!-- Caching abstraction (@EnableCaching, @Cacheable/@CacheEvict) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-cache</artifactId>
 		</dependency>
 
-		<!-- Redis: backs the cache abstraction above (CacheConfig) and the
-		     distributed rate limiter for auth endpoints (see the
-		     `ratelimit` package) - both added in Phase 7. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
 
-		<!-- Kafka: domain events (ticket lifecycle) published after
-		     transaction commit and consumed independently by the
-		     notification and audit modules - see `ticket.event` and
-		     `config.KafkaConfig`. Added in Phase 8. -->
 		<dependency>
 			<groupId>org.springframework.kafka</groupId>
 			<artifactId>spring-kafka</artifactId>
 		</dependency>
 
-		<!-- Observability -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
-		<!-- OpenAPI/Swagger UI (Phase 11) - not covered by Spring Boot's own
-		     dependency management, so its version is pinned explicitly
-		     here. Must be 2.8.x, not the older (and otherwise fine) 2.6.x
-		     line - 2.6.0 fails at runtime against this project's Spring
-		     Framework 6.2 (Boot 3.5.3) with a NoSuchMethodError on
-		     ControllerAdviceBean's constructor, whose signature changed
-		     between the two Framework versions each line targets. Caught
-		     by OpenApiIntegrationTest, not by compilation. Disabled
-		     entirely in prod (application-prod.yml) - see
-		     config.OpenApiConfig's Javadoc. -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>2.8.5</version>
 		</dependency>
 
-		<!-- Boilerplate reduction -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
 
-		<!-- Config metadata for application.yml IDE support -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-configuration-processor</artifactId>
 			<optional>true</optional>
 		</dependency>
 
-		<!-- Test -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
@@ -153,12 +122,6 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Testcontainers: every integration test runs against an ephemeral
-		     Postgres/Kafka/Redis started for that test JVM, not the shared
-		     docker-compose services a developer runs locally - see
-		     `testsupport.ContainersConfig`. Versions come from Spring
-		     Boot's own dependency management (spring-boot-dependencies
-		     imports the Testcontainers BOM), so none are pinned here. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-testcontainers</artifactId>
@@ -195,10 +158,6 @@
 					</excludes>
 				</configuration>
 				<executions>
-					<!-- Writes META-INF/build-info.properties (name, version, build
-					     time), which Actuator's InfoContributor autoconfiguration
-					     reads automatically - without this, /actuator/info returns
-					     an empty body despite being exposed since Phase 1. -->
 					<execution>
 						<goals>
 							<goal>build-info</goal>
@@ -206,9 +165,6 @@
 					</execution>
 				</executions>
 			</plugin>
-			<!-- Surefire runs *Test (unit, no Docker) in `test`; Failsafe runs
-			     *IT (Testcontainers) in `integration-test`/`verify`. Version and
-			     goal bindings come from spring-boot-starter-parent. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>

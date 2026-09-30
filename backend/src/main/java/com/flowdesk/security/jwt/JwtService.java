@@ -14,15 +14,6 @@ import java.util.Date;
 import javax.crypto.SecretKey;
 import org.springframework.stereotype.Service;
 
-/**
- * Issues and validates FlowDesk's self-signed JWT access tokens (HS256).
- *
- * <p>Refresh tokens are handled separately (see
- * {@code auth.service.AuthService}) - they're opaque random strings
- * persisted in {@code refresh_tokens}, not JWTs, since they're checked
- * against the database anyway (for rotation/revocation) so there's no
- * benefit to making them self-describing tokens.
- */
 @Service
 public class JwtService {
 
@@ -41,8 +32,6 @@ public class JwtService {
     void init() {
         byte[] keyBytes = properties.secret().getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
-            // HS256 requires a >= 256-bit key; fail fast at startup rather
-            // than let Keys.hmacShaKeyFor throw deep inside a request.
             throw new IllegalStateException(
                     "app.jwt.secret must be at least 32 characters (256 bits) for HS256");
         }
@@ -71,13 +60,6 @@ public class JwtService {
         return properties.accessTokenTtl().toSeconds();
     }
 
-    /**
-     * @throws JwtException if the token is malformed, expired, or its
-     *                       signature doesn't match - callers (only
-     *                       {@link JwtAuthenticationFilter}) treat any
-     *                       subtype the same way: the request simply isn't
-     *                       authenticated.
-     */
     public AuthenticatedPrincipal parseAndValidate(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(signingKey)

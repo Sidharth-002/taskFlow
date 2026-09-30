@@ -1,6 +1,5 @@
 const COLORS = ["#a855f7", "#ec4899", "#06b6d4", "#facc15", "#22c55e", "#f97316"];
 
-/** A short DOM-only confetti burst from a point (defaults to screen centre). Skipped under reduced motion. */
 export function confetti(origin?: { x: number; y: number }) {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     return;

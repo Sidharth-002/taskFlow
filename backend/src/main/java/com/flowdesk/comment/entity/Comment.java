@@ -15,14 +15,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * A comment on a ticket. No {@code @Version} here (unlike {@code Ticket}
- * and {@code RefreshToken}): an edit conflict on a single free-text field,
- * by its own author, is low-stakes and low-probability enough that
- * optimistic locking would be solving a problem this entity doesn't
- * really have - last-write-wins is an acceptable outcome for a comment
- * body in a way it isn't for a ticket's workflow state.
- */
 @Entity
 @Table(name = "comments")
 @Getter

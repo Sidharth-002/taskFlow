@@ -46,7 +46,7 @@ export function TicketDetailPage() {
       setTicket(updated);
     } catch (err) {
       setError(extractErrorMessage(err));
-      setStatusDraft(ticket.status); // revert the dropdown on failure
+      setStatusDraft(ticket.status);
     } finally {
       setSavingStatus(false);
     }

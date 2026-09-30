@@ -109,15 +109,10 @@ class DashboardServiceTest {
         User agent = user(2L);
 
         List<Ticket> tickets = List.of(
-                // Open, unassigned, overdue (due yesterday), created 2 days ago.
                 ticket(1L, TicketStatus.OPEN, TicketPriority.HIGH, null, oneHourAgo.minus(1, ChronoUnit.DAYS), twoDaysAgo, twoDaysAgo),
-                // In progress, assigned, not overdue (due in the future).
                 ticket(2L, TicketStatus.IN_PROGRESS, TicketPriority.MEDIUM, agent, now.plus(5, ChronoUnit.DAYS), twoDaysAgo, twoDaysAgo),
-                // Closed recently (within 7 days) - counts toward closedLastSevenDays.
                 ticket(3L, TicketStatus.CLOSED, TicketPriority.LOW, agent, tenDaysAgo, tenDaysAgo, oneHourAgo),
-                // Closed long ago - does NOT count toward closedLastSevenDays.
                 ticket(4L, TicketStatus.CLOSED, TicketPriority.LOW, agent, tenDaysAgo, tenDaysAgo, tenDaysAgo),
-                // Overdue due date, but RESOLVED - must not count as overdue.
                 ticket(5L, TicketStatus.RESOLVED, TicketPriority.CRITICAL, agent, tenDaysAgo, tenDaysAgo, tenDaysAgo));
 
         when(ticketRepository.findAll(ArgumentMatchers.<Specification<Ticket>>any())).thenReturn(tickets);
@@ -137,9 +132,9 @@ class DashboardServiceTest {
                 .containsEntry(TicketPriority.LOW, 2L)
                 .containsEntry(TicketPriority.CRITICAL, 1L);
         assertThat(summary.unassignedCount()).isEqualTo(1);
-        assertThat(summary.overdueCount()).isEqualTo(1); // only ticket 1 - RESOLVED/CLOSED never count as overdue
-        assertThat(summary.createdLastSevenDays()).isEqualTo(2); // tickets 1 and 2
-        assertThat(summary.closedLastSevenDays()).isEqualTo(1); // only ticket 3
+        assertThat(summary.overdueCount()).isEqualTo(1);
+        assertThat(summary.createdLastSevenDays()).isEqualTo(2);
+        assertThat(summary.closedLastSevenDays()).isEqualTo(1);
     }
 
     @Test

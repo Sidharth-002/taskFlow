@@ -16,10 +16,6 @@ CREATE TABLE tickets
     updated_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
--- Single-column indexes for the individual filters GET /api/tickets
--- supports (Section 15/16 of the spec: status, priority, assignee, team,
--- project - project_id and team_id already get an index from their FK,
--- Postgres does not create one automatically, so it's explicit here too).
 CREATE INDEX idx_tickets_organization_id ON tickets (organization_id);
 CREATE INDEX idx_tickets_project_id ON tickets (project_id);
 CREATE INDEX idx_tickets_team_id ON tickets (team_id);
@@ -28,10 +24,5 @@ CREATE INDEX idx_tickets_status ON tickets (status);
 CREATE INDEX idx_tickets_priority ON tickets (priority);
 CREATE INDEX idx_tickets_created_at ON tickets (created_at);
 
--- Composite indexes matching the two most common real query shapes:
--- every ticket list is scoped to one organization first, then usually
--- filtered by status or sorted by recency within that organization.
--- A single-column organization_id index alone would still require
--- scanning/filtering all of that org's tickets for the second predicate.
 CREATE INDEX idx_tickets_org_status ON tickets (organization_id, status);
 CREATE INDEX idx_tickets_org_created_at ON tickets (organization_id, created_at DESC);

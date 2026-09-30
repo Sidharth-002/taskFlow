@@ -8,8 +8,6 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-flowdesk}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-flowdesk}
     ports:
-      # Host port defaults to 5433 to avoid clashing with a locally
-      # installed PostgreSQL service that may already own 5432.
       - "${DB_PORT:-5433}:5432"
     volumes:
       - flowdesk-postgres-data:/var/lib/postgresql/data
@@ -24,9 +22,6 @@ services:
     container_name: flowdesk-redis
     restart: unless-stopped
     ports:
-      # Host port defaults to 6380 to avoid clashing with a locally
-      # installed Redis service that may already own 6379 (same reasoning
-      # as Postgres's 5433 above).
       - "${REDIS_PORT:-6380}:6379"
     volumes:
       - flowdesk-redis-data:/data
@@ -37,11 +32,6 @@ services:
       retries: 10
 
   kafka:
-    # KRaft mode (broker + controller combined in one process) - no
-    # Zookeeper needed. The official Apache Kafka image has supported this
-    # standalone since 3.7/3.8, which is simpler for a single local
-    # instance than running a separate Zookeeper container just for one
-    # broker.
     image: apache/kafka:3.8.0
     container_name: flowdesk-kafka
     restart: unless-stopped
@@ -50,14 +40,6 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      # Two listeners: PLAINTEXT is what the broker binds to inside the
-      # container; CONTROLLER is KRaft's internal consensus listener
-      # (never used by application clients). ADVERTISED_LISTENERS is what
-      # the broker tells a client to reconnect to after the initial
-      # handshake - it must be the *host*-reachable address
-      # (localhost:${KAFKA_PORT}), not the container-internal bind
-      # address, since FlowDesk runs on the host, not inside this compose
-      # network.
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:${KAFKA_PORT:-9092}
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER

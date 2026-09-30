@@ -544,7 +544,6 @@ const EVENT_ICONS: Record<string, IconName> = {
   TICKET_OVERDUE: "flame",
 };
 
-/** The audit log stores ids and enum names ("Assigned to user #5", "from OPEN to IN_PROGRESS"); show names instead. */
 function humanizeSummary(summary: string, userName: (id: number | null) => string | null): string {
   return summary
     .replace(/user #(\d+)/g, (match, id) => userName(Number(id)) ?? match)

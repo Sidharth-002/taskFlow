@@ -19,7 +19,6 @@ import { EmptyState, ErrorBanner, Skeleton } from "../../shared/ui/Feedback";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** The same shape the backend's /api/dashboard/summary returns, computed from the tickets this user can see. */
 function summarize(tickets: TicketListItem[]): DashboardSummary {
   const weekAgo = Date.now() - WEEK_MS;
   const countsByStatus: DashboardSummary["countsByStatus"] = {};

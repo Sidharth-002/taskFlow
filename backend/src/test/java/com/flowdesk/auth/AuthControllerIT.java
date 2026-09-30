@@ -18,15 +18,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Exercises the full authentication flow through the real Spring Security
- * filter chain (registration, login, the JWT-protected {@code /me}
- * endpoint, refresh rotation, and logout) via MockMvc - as close to a real
- * HTTP client as a test gets without actually binding a port.
- *
- * <p>Runs against an ephemeral Testcontainers PostgreSQL instance (Phase
- * 10) - no local Docker state or manual setup required.
- */
 @WebIntegrationTest
 @Transactional
 class AuthControllerIT {
@@ -62,7 +53,6 @@ class AuthControllerIT {
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.user.email").value(email))
                 .andExpect(jsonPath("$.user.role").value("ORG_ADMIN"))
-                // Never leak the password hash through the API, under any field name.
                 .andExpect(jsonPath("$.user.passwordHash").doesNotExist())
                 .andExpect(jsonPath("$.user.password").doesNotExist());
     }
@@ -167,14 +157,12 @@ class AuthControllerIT {
         JsonNode rotated = objectMapper.readTree(refreshResult.getResponse().getContentAsString());
         String newRefreshToken = rotated.get("refreshToken").asText();
 
-        // The old token was consumed by rotation - presenting it again must fail.
         mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(refreshPayload))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
 
-        // The new one, meanwhile, still works.
         String newRefreshPayload = objectMapper.writeValueAsString(java.util.Map.of("refreshToken", newRefreshToken));
         mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)

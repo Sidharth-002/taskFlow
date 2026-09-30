@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { extractErrorMessage } from "../api/client";
 
-/** Loads data on mount and whenever `deps` change; exposes a manual reload. */
 export function useAsync<T>(load: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +32,6 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]) {
   return { data, setData, error, loading, reload };
 }
 
-/** Animates a number from 0 to `target` - purely decorative, instant under reduced motion. */
 export function useCountUp(target: number, durationMs = 900): number {
   const [value, setValue] = useState(0);
   useEffect(() => {
@@ -49,7 +47,6 @@ export function useCountUp(target: number, durationMs = 900): number {
       if (t < 1) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
-    // rAF is paused in background tabs; make sure the real number always lands.
     const settle = window.setTimeout(() => setValue(target), durationMs + 100);
     return () => {
       cancelAnimationFrame(frame);
@@ -68,7 +65,6 @@ export function useDebounced<T>(value: T, delayMs = 250): T {
   return debounced;
 }
 
-/** Fires a window event other mounted pages listen for to refresh their ticket data. */
 export const TICKETS_CHANGED = "flowdesk:tickets-changed";
 
 export function announceTicketsChanged() {
@@ -85,7 +81,6 @@ export function useOnTicketsChanged(callback: () => void) {
   }, []);
 }
 
-/** True when a keyboard event started in a text field, where global shortcuts must not fire. */
 export function isTypingTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   return !!el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));

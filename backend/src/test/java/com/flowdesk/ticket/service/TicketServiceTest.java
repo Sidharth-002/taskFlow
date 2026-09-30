@@ -66,12 +66,6 @@ class TicketServiceTest {
     @Mock
     private TicketEventPublisher eventPublisher;
 
-    // A real instance, not a mock: TicketMapper is a small pure function
-    // with no dependencies of its own, so exercising the real mapping
-    // logic is more useful here than stubbing "toResponse returns X".
-    // Built explicitly in setUp() rather than via @InjectMocks, since
-    // Mockito's constructor-injection only auto-wires @Mock/@Spy fields -
-    // it would otherwise silently pass null for this one.
     private TicketService ticketService;
 
     @BeforeEach
@@ -129,8 +123,6 @@ class TicketServiceTest {
         return t;
     }
 
-    // ---- create ----
-
     @Test
     void create_defaultsPriorityToMedium_andStatusToOpen() {
         AuthenticatedPrincipal caller = principal(1L, Role.ORG_ADMIN);
@@ -183,8 +175,6 @@ class TicketServiceTest {
                 new CreateTicketRequest("T", null, null, 10L, null, null, null), caller))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
-
-    // ---- visibility (getById / list) ----
 
     @Test
     void getById_orgAdmin_seesAnyTicketInOrganization() {
@@ -281,8 +271,6 @@ class TicketServiceTest {
         verify(ticketRepository).findAll(ArgumentMatchers.<Specification<Ticket>>any(), eq(pageable));
     }
 
-    // ---- update: workflow + reassignment authorization ----
-
     @Test
     void update_invalidTransition_throwsAndDoesNotPersist() {
         Ticket ticket = ticket(5L, ORG_ID, user(1L, Role.ORG_ADMIN), null, null, TicketStatus.OPEN);
@@ -325,9 +313,6 @@ class TicketServiceTest {
         assertThat(captor.getValue().newStatus()).isEqualTo(TicketStatus.IN_PROGRESS);
         verify(eventPublisher, never()).publish(any(TicketClosedEvent.class));
 
-        // A no-op "update" that doesn't actually change status (e.g. only
-        // the title changes) must not publish a spurious status-change
-        // event.
         clearInvocations(eventPublisher);
         ticketService.update(
                 5L, new UpdateTicketRequest("New title", null, null, null, null, null, null),
@@ -414,8 +399,6 @@ class TicketServiceTest {
 
         assertThat(response.status()).isEqualTo(TicketStatus.IN_PROGRESS);
     }
-
-    // ---- delete ----
 
     @Test
     void delete_removesTenantScopedTicket() {

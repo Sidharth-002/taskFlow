@@ -3,7 +3,6 @@ package com.flowdesk.project.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/** Archiving is a separate, dedicated action (see {@code ProjectController}), not a field here. */
 public record UpdateProjectRequest(
 
         @NotBlank(message = "Project name is required")

@@ -13,21 +13,6 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-/**
- * Base type for all JPA entities.
- *
- * <p>Provides an identity-strategy primary key plus {@code createdAt} /
- * {@code updatedAt} timestamps populated automatically by Spring Data JPA
- * auditing (see {@link com.flowdesk.config.JpaAuditingConfig}) rather than
- * being set manually in service code - this relies on Hibernate's dirty
- * checking to persist {@code updatedAt} whenever a managed entity's state
- * changes within a transaction.
- *
- * <p>{@code equals}/{@code hashCode} are based on the database identifier
- * once assigned, and fall back to reference equality for transient
- * (unsaved) entities, which is the safe default for JPA entities used in
- * collections (e.g. {@code Set<User>} members on {@link com.flowdesk.team.Team}).
- */
 @Getter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)

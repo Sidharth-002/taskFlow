@@ -4,7 +4,6 @@ export const STATUSES: TicketStatus[] = ["OPEN", "IN_PROGRESS", "WAITING", "RESO
 
 export const PRIORITIES: TicketPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 
-/** Mirrors backend TicketWorkflow.ALLOWED_TRANSITIONS - the server still validates every move. */
 export const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   OPEN: ["IN_PROGRESS"],
   IN_PROGRESS: ["WAITING", "RESOLVED"],

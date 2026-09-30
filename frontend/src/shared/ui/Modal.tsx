@@ -52,7 +52,6 @@ export function Modal({
   );
 }
 
-/** Promise-free confirm dialog for destructive actions. */
 export function ConfirmModal({
   title,
   message,

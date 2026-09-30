@@ -3,13 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { extractErrorMessage } from "../api/client";
 
-/**
- * Provisions a brand-new organization with the submitter as its first
- * user (ORG_ADMIN) - matching the backend's `RegisterRequest`, there is no
- * "join an existing organization" flow. Adding further users (any other
- * role) is an ORG_ADMIN-only API action with no UI here - see the
- * frontend's README section for why.
- */
 export function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();

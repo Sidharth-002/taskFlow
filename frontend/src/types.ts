@@ -1,7 +1,3 @@
-// Mirrors the backend's DTO shapes (see backend/src/main/java/com/flowdesk/**/dto)
-// closely enough for the UI's needs - not a full 1:1 transcription of every
-// field the API returns, only the ones actually rendered or submitted here.
-
 export type Role = "SUPER_ADMIN" | "ORG_ADMIN" | "TEAM_LEAD" | "AGENT" | "USER";
 
 export type TicketStatus = "OPEN" | "IN_PROGRESS" | "WAITING" | "RESOLVED" | "CLOSED";
@@ -93,7 +89,7 @@ export interface Page<T> {
   content: T[];
   totalElements: number;
   totalPages: number;
-  number: number; // current page, 0-indexed
+  number: number;
   size: number;
 }
 

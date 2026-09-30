@@ -26,12 +26,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Create/update/deactivate/assign-lead are {@code ORG_ADMIN}-only. Adding
- * and removing members is also open to {@code TEAM_LEAD} - but only for
- * their own team, checked at the row level in {@code TeamService} since
- * {@code @PreAuthorize} can't express "only your team".
- */
 @RestController
 @Tag(name = "Teams")
 @RequestMapping("/api/teams")

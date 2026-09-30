@@ -26,18 +26,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Verifies the core domain entities map correctly onto the Flyway-managed
- * schema: relationships persist and reload as expected, and the
- * constraints declared in the migrations (unique email, required foreign
- * keys) are actually enforced by the database rather than only assumed
- * from the Java model.
- *
- * <p>Runs against an ephemeral Testcontainers PostgreSQL instance (Phase
- * 10) - no local Docker state or manual setup required.
- */
 @IntegrationTest
-@Transactional // each test rolls back, so tests don't leak data into each other
+@Transactional
 class DomainEntityMappingIT {
 
     @Autowired
@@ -53,12 +43,6 @@ class DomainEntityMappingIT {
     @PersistenceContext
     private EntityManager entityManager;
 
-    /**
-     * Emails are unique per call (not fixed strings like "admin@acme.test")
-     * so this test is never fragile against leftover data from another
-     * source - manual API testing against the same dev database, a
-     * previous failed run that didn't roll back cleanly, etc.
-     */
     private String uniqueEmail(String prefix) {
         return prefix + "-" + UUID.randomUUID() + "@acme.test";
     }
@@ -113,10 +97,10 @@ class DomainEntityMappingIT {
                 .build());
 
         entityManager.flush();
-        entityManager.clear(); // force a real reload from the DB, not the 1st-level cache
+        entityManager.clear();
 
         Ticket reloaded = ticketRepository.findById(ticket.getId()).orElseThrow();
-        assertThat(reloaded.getStatus()).isEqualTo(TicketStatus.OPEN); // default applied
+        assertThat(reloaded.getStatus()).isEqualTo(TicketStatus.OPEN);
         assertThat(reloaded.getPriority()).isEqualTo(TicketPriority.HIGH);
         assertThat(reloaded.getOrganization().getId()).isEqualTo(org.getId());
         assertThat(reloaded.getProject().getName()).isEqualTo("Website");
@@ -175,9 +159,6 @@ class DomainEntityMappingIT {
                 .title("Something broke").build());
         Long versionAfterInsert = ticket.getVersion();
 
-        // No explicit repository.save() call here: Hibernate's dirty
-        // checking detects the field change on this still-managed entity
-        // and issues the UPDATE automatically at flush time.
         ticket.setStatus(TicketStatus.IN_PROGRESS);
         entityManager.flush();
 

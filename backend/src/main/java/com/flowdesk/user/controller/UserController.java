@@ -24,12 +24,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Read endpoints are open to any authenticated organization member -
- * needed to pick a ticket assignee - but {@code SUPER_ADMIN} is excluded
- * throughout, same as {@code ProjectController}, since it has no
- * organization to scope to. Every mutating endpoint is {@code ORG_ADMIN}-only.
- */
 @RestController
 @Tag(name = "Users")
 @RequestMapping("/api/users")

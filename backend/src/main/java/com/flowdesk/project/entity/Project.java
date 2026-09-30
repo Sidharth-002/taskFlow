@@ -16,14 +16,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * A project within an organization. Tickets belong to a project.
- *
- * <p>Projects are archived rather than deleted ({@link ProjectStatus#ARCHIVED}),
- * since deleting a project would either orphan or cascade-delete its
- * tickets - neither of which is acceptable once tickets carry business
- * and audit history.
- */
 @Entity
 @Table(name = "projects")
 @Getter

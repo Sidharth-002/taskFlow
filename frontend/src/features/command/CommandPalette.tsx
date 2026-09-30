@@ -38,7 +38,6 @@ export function CommandPalette({
   const debounced = useDebounced(query.trim(), 200);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // "FD-42" or "42" jumps straight to that ticket; anything else is a title search.
   const directId = /^(fd-)?(\d+)$/i.exec(query.trim())?.[2];
 
   useEffect(() => {

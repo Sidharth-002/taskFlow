@@ -13,9 +13,6 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Paths that must never trigger the refresh-and-retry dance below, even on
-// a 401 - refresh/login failing with 401 means the credential itself was
-// rejected, not that the access token expired mid-session.
 const AUTH_PATHS_EXCLUDED_FROM_REFRESH = ["/api/auth/login", "/api/auth/refresh", "/api/auth/register"];
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
@@ -24,14 +21,6 @@ interface RetriableRequestConfig extends InternalAxiosRequestConfig {
 
 let refreshInFlight: Promise<string> | null = null;
 
-/**
- * A single refresh token is one-time-use (Phase 3's rotation - see the
- * backend's `RefreshToken` Javadoc), so two requests hitting a 401 at
- * the same moment must not each independently call `/api/auth/refresh`:
- * whichever loses that race would present an already-rotated-away token
- * and fail. `refreshInFlight` makes every 401 arriving while a refresh is
- * already in progress await that same promise instead of starting its own.
- */
 function refreshAccessToken(): Promise<string> {
   if (!refreshInFlight) {
     const refreshToken = tokenStorage.getRefreshToken();
@@ -78,7 +67,6 @@ apiClient.interceptors.response.use(
   },
 );
 
-/** Extracts the backend's uniform error shape (see `ApiErrorBody`), falling back to a generic message for network-level failures. */
 export function extractErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const body = error.response?.data as { message?: string } | undefined;

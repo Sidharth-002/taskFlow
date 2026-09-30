@@ -39,12 +39,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * All methods here are only reachable for the four organization-scoped
- * roles - {@code TicketController}'s {@code @PreAuthorize} excludes
- * {@code SUPER_ADMIN} entirely, since tickets are an organization-scoped
- * resource and {@code SUPER_ADMIN} has none (see {@code User.organization}).
- */
 @Service
 public class TicketService {
 
@@ -116,23 +110,8 @@ public class TicketService {
         return ticketMapper.toResponse(loadVisible(id, caller));
     }
 
-    /**
-     * Default visibility per role (Section 6 of the spec) composed with
-     * whichever optional filters the caller supplied
-     * (status/priority/project/team/assignee/title search), via
-     * {@link TicketSpecifications} - see its Javadoc for why this replaced
-     * Phase 4/5's one fixed query method per role. Returns the enriched
-     * {@link TicketListItemResponse} (names, not just IDs), which is safe
-     * from N+1 only because {@code TicketRepository.findAll} fetch-joins
-     * every association the mapper reads.
-     */
     @Transactional(readOnly = true)
     public Page<TicketListItemResponse> list(TicketSearchCriteria criteria, Pageable pageable, AuthenticatedPrincipal caller) {
-        // Specification.allOf ignores no restriction elements the way
-        // Specification.where(...).and(...) used to, without relying on
-        // that now-deprecated method - each TicketSpecifications method
-        // returns null for "filter not supplied", so nulls are filtered
-        // out here before combining the rest with logical AND.
         List<Specification<Ticket>> specs = Stream.of(
                         TicketSpecifications.inOrganization(caller.organizationId()),
                         TicketSpecifications.visibleTo(caller),
@@ -148,14 +127,6 @@ public class TicketService {
         return ticketRepository.findAll(Specification.allOf(specs), pageable).map(ticketMapper::toListItem);
     }
 
-    /**
-     * Backs both {@code PUT} and {@code PATCH} (see
-     * {@code UpdateTicketRequest}'s Javadoc for why they share one
-     * implementation). Reassignment ({@code teamId}/{@code assignedToId})
-     * is restricted to {@code ORG_ADMIN}/{@code TEAM_LEAD} regardless of
-     * which HTTP verb was used - the workflow and authorization rules live
-     * here, not in the controller (Section 14 of the spec).
-     */
     @Transactional
     public TicketResponse update(Long id, UpdateTicketRequest request, AuthenticatedPrincipal caller) {
         Ticket ticket = loadVisible(id, caller);
@@ -191,26 +162,11 @@ public class TicketService {
             ticket.setAssignedTo(assignee);
         }
 
-        // saveAndFlush, not save: @Version and the @LastModifiedDate
-        // auditing callback are only applied by Hibernate at flush time
-        // (via dirty checking), not immediately when a setter is called.
-        // Mapping to the response DTO before flushing would silently
-        // return the ticket's *previous* version/updatedAt instead of the
-        // values this update actually produced. Flushing here also means
-        // a concurrent edit's ObjectOptimisticLockingFailureException
-        // surfaces from this method call (handled globally), rather than
-        // only later when the transaction commits.
         Ticket saved = ticketRepository.saveAndFlush(ticket);
         publishUpdateEvents(saved, previousStatus, previousAssigneeId, caller);
         return ticketMapper.toResponse(saved);
     }
 
-    /**
-     * Compares before/after state rather than the raw request fields,
-     * since e.g. reassigning a ticket to the assignee it already has
-     * ({@code request.assignedToId()} non-null but unchanged) shouldn't
-     * fire a spurious {@link TicketAssignedEvent}.
-     */
     private void publishUpdateEvents(Ticket ticket, TicketStatus previousStatus, Long previousAssigneeId, AuthenticatedPrincipal caller) {
         Instant now = Instant.now();
 
@@ -237,24 +193,12 @@ public class TicketService {
         ticketRepository.delete(ticket);
     }
 
-    /**
-     * Public (rather than the more common package-private for an internal
-     * helper) specifically so {@code CommentService} - a comment thread is
-     * always scoped to a ticket - can reuse the same tenant/visibility
-     * rule instead of duplicating it. Returns the entity, not a DTO: this
-     * is service-to-service collaboration within one request's
-     * transaction, not a controller-facing API, so entity exposure here
-     * doesn't violate the "never expose entities from controllers" rule.
-     */
     @Transactional(readOnly = true)
     public Ticket loadVisible(Long id, AuthenticatedPrincipal caller) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Ticket", id));
 
         if (!ticket.getOrganization().getId().equals(caller.organizationId()) || !isVisibleToCaller(ticket, caller)) {
-            // Same external behavior for "wrong organization" and "right
-            // organization, but not within your role's visibility scope" -
-            // both should look identical to a 404 from the caller's side.
             throw new TenantAccessDeniedException(
                     "Ticket %d is not accessible to user %d".formatted(id, caller.userId()));
         }
@@ -269,7 +213,7 @@ public class TicketService {
                     && ticket.getTeam().getTeamLead().getId().equals(caller.userId());
             case AGENT -> ticket.getAssignedTo() != null && ticket.getAssignedTo().getId().equals(caller.userId());
             case USER -> ticket.getCreatedBy().getId().equals(caller.userId());
-            case SUPER_ADMIN -> false; // unreachable - excluded by @PreAuthorize
+            case SUPER_ADMIN -> false;
         };
     }
 

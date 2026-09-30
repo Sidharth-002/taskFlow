@@ -11,14 +11,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
-/**
- * Produces the same {@link ErrorResponse} JSON shape as
- * {@link com.flowdesk.shared.exception.GlobalExceptionHandler} for requests
- * rejected by the Spring Security filter chain itself - a missing or
- * invalid JWT on a protected endpoint - which happens before the request
- * ever reaches a controller, so {@code @RestControllerAdvice} cannot
- * intercept it.
- */
 @Component
 public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 

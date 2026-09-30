@@ -32,11 +32,6 @@ export function createTicket(input: CreateTicketInput) {
   return apiClient.post<TicketDetail>("/api/tickets", input).then((r) => r.data);
 }
 
-/**
- * Partial update: omitted fields are left unchanged. The backend can't tell
- * "omitted" from "null", so an assignee, team or due date can be changed but
- * not cleared (see UpdateTicketRequest's Javadoc).
- */
 export function updateTicket(
   id: number,
   input: Partial<{

@@ -15,42 +15,14 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/**
- * {@code JpaSpecificationExecutor} backs {@code TicketService.list}'s
- * dynamic search (role-visibility + user-supplied filters composed via
- * {@code TicketSpecifications}, see its Javadoc) in place of Phase 4/5's
- * one fixed query method per role.
- */
 public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecificationExecutor<Ticket> {
 
     Optional<Ticket> findByIdAndOrganizationId(Long id, Long organizationId);
 
-    /**
-     * Overrides {@code JpaSpecificationExecutor}'s default so that list
-     * queries fetch {@code project}/{@code team}/{@code createdBy}/
-     * {@code assignedTo} in the same round trip instead of one lazy load
-     * per row per association (the classic N+1 for a paginated list that
-     * renders names, not just IDs - see {@code TicketListItemResponse}).
-     * Safe with pagination here specifically because every fetched
-     * association is {@code @ManyToOne}: unlike fetching a
-     * {@code @OneToMany}/{@code @ManyToMany} collection, this cannot
-     * multiply row count, so in-memory pagination workarounds aren't
-     * needed. Spring Data also automatically strips the entity graph from
-     * the accompanying {@code COUNT} query, so the total-element count
-     * isn't affected either.
-     */
     @Override
     @EntityGraph(attributePaths = {"project", "team", "createdBy", "assignedTo"})
     Page<Ticket> findAll(Specification<Ticket> spec, Pageable pageable);
 
-    /**
-     * Backs {@code OverdueTicketCheckJob} - every organization, not just
-     * one (this runs on a schedule, not on behalf of a single caller, so
-     * there's no tenant to scope by). {@code overdueNotifiedAt is null}
-     * excludes tickets the job has already published a
-     * {@code TicketOverdueEvent} for, so a ticket that's been overdue
-     * across several runs is only ever notified about once.
-     */
     @Query("select t from Ticket t where t.dueDate < :now and t.status not in :excludedStatuses and t.overdueNotifiedAt is null")
     List<Ticket> findOverdueAndNotYetNotified(@Param("now") Instant now, @Param("excludedStatuses") Collection<TicketStatus> excludedStatuses);
 }

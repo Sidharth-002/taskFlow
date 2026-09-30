@@ -13,12 +13,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Same role gate as {@code TicketController} - whether a specific ticket's
- * activity history is visible to this caller is a row-level check inside
- * {@code AuditService} (via {@code TicketService.loadVisible}), same as
- * viewing the ticket itself.
- */
 @RestController
 @Tag(name = "Audit")
 @RequestMapping("/api/tickets/{ticketId}/audit-log")

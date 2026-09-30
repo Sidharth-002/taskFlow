@@ -8,18 +8,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Deletes expired refresh token rows - see
- * {@code RefreshTokenRepository.deleteExpiredBefore}'s Javadoc for why
- * this table needs a cleanup job at all (rotation and bulk revocation
- * both only ever set {@code revoked = true}, never delete). Runs on
- * {@code app.scheduling.refresh-token-cleanup-cron} (daily by default -
- * see {@code application.yml}).
- *
- * <p>{@code run()} is directly callable (not just reachable via the real
- * cron trigger) so tests can exercise it deterministically, the same
- * reasoning as {@code OverdueTicketCheckJob}.
- */
 @Component
 public class RefreshTokenCleanupJob {
 

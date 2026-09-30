@@ -11,11 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * Proves {@link CorrelationIdFilter} is actually wired into the real
- * request pipeline - not just that it compiles - via a public endpoint
- * ({@code /actuator/health}) so no auth setup is needed to exercise it.
- */
 @WebIntegrationTest
 class CorrelationIdFilterIT {
 
@@ -31,9 +26,6 @@ class CorrelationIdFilterIT {
 
         String correlationId = result.getResponse().getHeader(CorrelationIdFilter.HEADER_NAME);
         assertThat(correlationId).isNotBlank();
-        // Not asserting a specific value (it's freshly generated per
-        // request) - just that it parses as the UUID format the filter
-        // documents itself as generating.
         assertThat(UUID.fromString(correlationId)).isNotNull();
     }
 

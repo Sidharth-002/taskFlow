@@ -46,7 +46,6 @@ export function TicketsPage() {
   );
   useOnTicketsChanged(reload);
 
-  // Any filter change goes back to the first page.
   function update<T>(setter: (v: T) => void) {
     return (value: T) => {
       setter(value);

@@ -17,11 +17,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Always scoped to the caller themselves - there is no way to list or act
- * on another user's notifications, by any role (see
- * {@code NotificationService}'s Javadoc).
- */
 @RestController
 @Tag(name = "Notifications")
 @RequestMapping("/api/notifications")

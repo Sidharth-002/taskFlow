@@ -17,11 +17,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * End-to-end coverage of the Phase 5 gap found and fixed:
- * deactivating a user must actually cut off their access, not just their
- * ability to log in fresh - see {@code AuthService.refresh}'s Javadoc.
- */
 @WebIntegrationTest
 @Transactional
 class UserManagementIT {
@@ -84,15 +79,12 @@ class UserManagementIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
 
-        // The refresh token issued before deactivation must no longer work -
-        // this is the exact gap found during Phase 5 hardening.
         mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("refreshToken", agent.refreshToken()))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
 
-        // Nor can they log in fresh.
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("email", agent.email(), "password", "password123"))))

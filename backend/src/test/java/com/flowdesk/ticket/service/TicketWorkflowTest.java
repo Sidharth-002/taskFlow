@@ -13,12 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-/**
- * Exhaustively checks every (from, to) pair in {@link TicketStatus}
- * against the exact graph the spec draws (Section 14) - not just a couple
- * of happy-path examples - so a future edit that accidentally widens or
- * narrows the allowed transitions is caught immediately.
- */
 class TicketWorkflowTest {
 
     private static final Map<TicketStatus, Set<TicketStatus>> EXPECTED_ALLOWED = new EnumMap<>(TicketStatus.class);

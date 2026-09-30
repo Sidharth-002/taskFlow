@@ -19,21 +19,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * Proves {@code OverdueTicketCheckJob} end-to-end through the real Kafka
- * pipeline: a ticket already past its due date gets a
- * {@code TicketOverdueEvent} published, consumed into both a
- * {@code Notification} and an {@code AuditLog} row, and is never
- * re-notified on a second run.
- *
- * <p>{@code job.run()} is called directly rather than waiting for its real
- * cron trigger - deterministic and immediate, and exactly what the job's
- * own Javadoc says it's designed for. Not {@code @Transactional} for the
- * same reason as {@code KafkaEventFlowIT}: the job's
- * {@code @Transactional} method needs to actually commit for
- * {@code TicketEventKafkaRelay} (which only relays {@code AFTER_COMMIT})
- * to fire.
- */
 @WebIntegrationTest
 class OverdueTicketCheckJobIT {
 
@@ -147,10 +132,8 @@ class OverdueTicketCheckJobIT {
                 n -> countOfType(n, "type", "TICKET_OVERDUE") == 1,
                 Duration.ofSeconds(15));
 
-        // A second run must not re-publish for the same ticket -
-        // overdueNotifiedAt was set on the first run.
         overdueTicketCheckJob.run();
-        Thread.sleep(1000); // give a (correctly not-happening) second event a moment, were it to occur
+        Thread.sleep(1000);
         assertThat(countOfType(auditLog(adminToken, ticketId), "eventType", "TICKET_OVERDUE")).isEqualTo(1);
         assertThat(countOfType(notifications(adminToken), "type", "TICKET_OVERDUE")).isEqualTo(1);
     }

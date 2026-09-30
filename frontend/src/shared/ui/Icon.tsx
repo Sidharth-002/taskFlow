@@ -1,5 +1,3 @@
-// Inline stroke icons (24x24 grid, currentColor) so there's no icon-font
-// or package dependency.
 const PATHS = {
   dashboard: "M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z",
   board: "M3 4h5v16H3zM10 4h4v10h-4zM16 4h5v7h-5z",

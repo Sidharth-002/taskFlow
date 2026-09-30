@@ -21,23 +21,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Every method here is only ever called for the four organization-scoped
- * roles ({@code @PreAuthorize} in {@code ProjectController} excludes
- * {@code SUPER_ADMIN}), so {@code caller.organizationId()} is always
- * non-null by the time it reaches this class.
- *
- * <p>{@code getById} is cached (Phase 7, see {@code CacheConfig}) - a
- * single project is read far more often (every ticket create/update
- * references one) than it's written. The cache key includes
- * {@code organizationId} alongside {@code id}, even though ticket IDs are
- * already globally unique, specifically so a cross-organization
- * {@code TenantAccessDeniedException} is never served from - or, worse,
- * masks - another organization's cached entry. {@code list} stays
- * uncached: it's already pagination-limited and cheap, and caching a
- * whole page per (organization, page, sort) combination would fragment
- * the cache for little benefit.
- */
 @Service
 public class ProjectService {
 
@@ -83,10 +66,6 @@ public class ProjectService {
         Project project = loadTenantScoped(id, caller);
         project.setName(request.name());
         project.setDescription(request.description());
-        // saveAndFlush, not save: @LastModifiedDate is only applied by
-        // Hibernate's auditing listener at flush time, so mapping before
-        // flushing would return the *previous* updatedAt instead of the
-        // value this update actually produced.
         return projectMapper.toResponse(projectRepository.saveAndFlush(project));
     }
 

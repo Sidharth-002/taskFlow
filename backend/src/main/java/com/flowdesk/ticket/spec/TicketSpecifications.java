@@ -6,21 +6,6 @@ import com.flowdesk.ticket.entity.TicketPriority;
 import com.flowdesk.ticket.entity.TicketStatus;
 import org.springframework.data.jpa.domain.Specification;
 
-/**
- * Dynamic ticket search, built one composable {@link Specification} per
- * concern and combined with {@code Specification.where(...).and(...)}
- * rather than one hand-written JPQL string per role/filter combination.
- * {@code Specification.where(null).and(null)} is well-defined (both sides
- * degrade to "no restriction"), so every method here simply returns
- * {@code null} for "this filter wasn't supplied" and the caller chains them
- * unconditionally - see {@code TicketService.list}.
- *
- * <p>Replaces the four fixed per-role repository query methods
- * {@code TicketRepository} used through Phase 5: a plain user-supplied
- * filter (status/priority/project/team/assignee/search) now composes with
- * whichever role-visibility restriction applies, instead of only being
- * usable against one fixed query per role.
- */
 public final class TicketSpecifications {
 
     private TicketSpecifications() {
@@ -30,15 +15,6 @@ public final class TicketSpecifications {
         return (root, query, cb) -> cb.equal(root.get("organization").get("id"), organizationId);
     }
 
-    /**
-     * The same default-visibility rule per role as Phase 4/5's fixed
-     * queries (Section 6 of the spec), just expressed as a composable
-     * predicate instead of a whole separate query method.
-     * {@code SUPER_ADMIN} is unreachable here ({@code TicketController}'s
-     * {@code @PreAuthorize} excludes it) but returns a deny-all predicate
-     * rather than silently falling through to "no restriction" if that
-     * ever changes.
-     */
     public static Specification<Ticket> visibleTo(AuthenticatedPrincipal caller) {
         return switch (caller.role()) {
             case ORG_ADMIN -> null;
@@ -71,7 +47,6 @@ public final class TicketSpecifications {
                 : (root, query, cb) -> cb.equal(root.get("assignedTo").get("id"), assignedToId);
     }
 
-    /** Case-insensitive substring match against the title, not full-text search. */
     public static Specification<Ticket> titleContains(String search) {
         if (search == null || search.isBlank()) {
             return null;

@@ -23,22 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Proves {@code ProjectService}/{@code TeamService}'s {@code @Cacheable}
- * {@code getById} is a real read-through cache against real Redis, not
- * just an annotation that compiles - and that the corresponding
- * {@code @CacheEvict} on each mutating method actually invalidates it.
- * Mutating the underlying row directly through the repository (bypassing
- * the service, and therefore its eviction) is what proves the *cache* is
- * the thing serving the second read, rather than the database just
- * happening to still return the same value.
- *
- * <p>Uses the real, Spring-proxied service beans (not a unit test with a
- * mocked repository) specifically because {@code @Cacheable}/
- * {@code @CacheEvict} are AOP advice applied to the proxy - a unit test
- * that {@code new}s up the service directly would never exercise them at
- * all.
- */
 @IntegrationTest
 class CachingIT {
 
@@ -65,9 +49,6 @@ class CachingIT {
         ProjectResponse first = projectService.getById(project.getId(), caller);
         assertThat(first.name()).isEqualTo("Original");
 
-        // Mutate the row directly through the repository, bypassing
-        // ProjectService entirely - if getById is genuinely cached, this
-        // change is invisible until something evicts the entry.
         project.setName("Changed behind the cache's back");
         projectRepository.saveAndFlush(project);
 
@@ -76,7 +57,6 @@ class CachingIT {
                 .as("a cached getById must not reflect a write that bypassed the service layer")
                 .isEqualTo("Original");
 
-        // Going through the service's own update method evicts the entry.
         projectService.update(project.getId(), new UpdateProjectRequest("Changed via service", null), caller);
 
         ProjectResponse afterEviction = projectService.getById(project.getId(), caller);
@@ -101,8 +81,6 @@ class CachingIT {
         TeamResponse first = teamService.getById(team.getId(), caller);
         assertThat(first.teamLeadId()).isNull();
 
-        // Direct repository mutation, bypassing TeamService.assignLead
-        // (and its @CacheEvict).
         team.setTeamLead(lead);
         teamRepository.saveAndFlush(team);
 
@@ -111,10 +89,6 @@ class CachingIT {
                 .as("a cached getById must not reflect a write that bypassed the service layer")
                 .isNull();
 
-        // Going through the service's own assignLead method evicts the
-        // entry (this call is a no-op business-wise, the lead is already
-        // set at the DB level from the direct mutation above, but its
-        // @CacheEvict is what matters here).
         teamService.assignLead(team.getId(), lead.getId(), caller);
 
         TeamResponse afterEviction = teamService.getById(team.getId(), caller);

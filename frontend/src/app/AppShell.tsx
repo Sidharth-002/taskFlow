@@ -53,13 +53,9 @@ export function AppShell() {
   useEffect(() => {
     try {
       localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
-    } catch {
-      /* storage unavailable - the toggle just won't persist */
-    }
+    } catch {}
   }, [collapsed]);
 
-  // Global shortcuts: Ctrl/Cmd+K or / for the palette, C to create, and
-  // Jira/GitHub-style "g then <key>" chords for navigation.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {

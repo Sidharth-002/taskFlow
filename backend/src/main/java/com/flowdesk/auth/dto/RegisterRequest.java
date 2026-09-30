@@ -5,14 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/**
- * Public self-service sign-up: provisions a brand-new organization
- * (tenant) with the caller as its first user, in the {@code ORG_ADMIN}
- * role. There is deliberately no way to register into an <em>existing</em>
- * organization here - once RBAC exists (Phase 5), an ORG_ADMIN adds
- * further users to their organization directly via the user management
- * API, rather than those users self-registering.
- */
 public record RegisterRequest(
 
         @NotBlank(message = "Organization name is required")

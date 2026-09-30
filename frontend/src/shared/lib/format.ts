@@ -19,12 +19,10 @@ export function fullDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
-/** yyyy-mm-dd for <input type="date">. */
 export function toDateInput(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "";
 }
 
-/** A date input's value as an end-of-day instant, so "due today" isn't overdue at 00:01. */
 export function fromDateInput(value: string): string | undefined {
   return value ? new Date(`${value}T23:59:59`).toISOString() : undefined;
 }

@@ -19,18 +19,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Two resource roots share this controller: comments are created/listed
- * under their ticket ({@code /api/tickets/{ticketId}/comments}, since a
- * comment doesn't make sense without that context) but edited/deleted by
- * their own ID ({@code /api/comments/{id}}, since at that point the
- * ticket ID is redundant - the comment ID alone is already unique and
- * sufficient).
- *
- * <p>Ownership (only your own comment) and visibility (only on a ticket
- * you can see) are enforced in {@code CommentService}, not here - see its
- * Javadoc.
- */
 @RestController
 @Tag(name = "Comments")
 @PreAuthorize("hasAnyRole('ORG_ADMIN', 'TEAM_LEAD', 'AGENT', 'USER')")

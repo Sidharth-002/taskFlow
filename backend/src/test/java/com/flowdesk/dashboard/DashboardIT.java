@@ -17,16 +17,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * {@code GET /api/dashboard/summary} through the real HTTP/security stack:
- * role gating ({@code ORG_ADMIN}/{@code TEAM_LEAD} only), org-wide counts
- * for {@code ORG_ADMIN}, and {@code TEAM_LEAD} seeing only their own
- * team's tickets - the same visibility split
- * {@code TeamManagementIT} proves for the ticket list itself.
- * {@code DashboardServiceTest} already covers the aggregation arithmetic
- * in isolation; this proves the wiring (role gate, visibility scoping)
- * around it.
- */
 @WebIntegrationTest
 @Transactional
 class DashboardIT {
@@ -131,14 +121,13 @@ class DashboardIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("userId", lead.id()))));
 
-        createTicket(adminToken, projectId, teamId); // visible to the lead
-        createTicket(adminToken, projectId, null); // not visible to the lead (no team)
+        createTicket(adminToken, projectId, teamId);
+        createTicket(adminToken, projectId, null);
 
         mockMvc.perform(get("/api/dashboard/summary").header("Authorization", "Bearer " + lead.token()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalTickets").value(1));
 
-        // The ORG_ADMIN still sees both.
         mockMvc.perform(get("/api/dashboard/summary").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalTickets").value(2));

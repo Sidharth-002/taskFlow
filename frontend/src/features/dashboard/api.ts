@@ -11,7 +11,6 @@ export interface DashboardSummary {
   closedLastSevenDays: number;
 }
 
-/** ORG_ADMIN and TEAM_LEAD only - other roles get a summary derived client-side (see DashboardPage). */
 export function getDashboardSummary() {
   return apiClient.get<DashboardSummary>("/api/dashboard/summary").then((r) => r.data);
 }

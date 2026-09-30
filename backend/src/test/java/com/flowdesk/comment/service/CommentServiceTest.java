@@ -131,8 +131,6 @@ class CommentServiceTest {
         Comment comment = comment(1L, author, ticketIn(ORG_ID));
         when(commentRepository.findById(1L)).thenReturn(Optional.of(comment));
 
-        // Section 17 of the spec: "Edit own comment" - no admin override,
-        // unlike delete.
         assertThatThrownBy(() -> commentService.update(1L, new CreateCommentRequest("Hacked"), principal(1L, Role.ORG_ADMIN)))
                 .isInstanceOf(UnauthorizedOperationException.class);
     }

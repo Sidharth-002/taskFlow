@@ -16,7 +16,6 @@ import { RolePill } from "../../shared/ui/RolePill";
 import { Icon } from "../../shared/ui/Icon";
 import { EmptyState, Spinner } from "../../shared/ui/Feedback";
 
-// SUPER_ADMIN can't be granted from an organization (UserService rejects it).
 const ASSIGNABLE_ROLES: Role[] = ["ORG_ADMIN", "TEAM_LEAD", "AGENT", "USER"];
 
 export function PeoplePage() {

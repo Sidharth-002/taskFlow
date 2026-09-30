@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { TicketListItem, TicketPriority } from "./types";
 
-/** Board filters, kept in the URL so a filtered board can be bookmarked or shared. */
 export function useBoardFilters() {
   const [params, setParams] = useSearchParams();
 
@@ -11,7 +10,7 @@ export function useBoardFilters() {
       text: params.get("q") ?? "",
       projectId: params.get("project") ? Number(params.get("project")) : null,
       teamId: params.get("team") ? Number(params.get("team")) : null,
-      assignee: params.get("assignee") ?? "", // user id, "none", or ""
+      assignee: params.get("assignee") ?? "",
       priorities: (params.get("prio")?.split(",").filter(Boolean) ?? []) as TicketPriority[],
       mine: params.get("mine") === "1",
     }),

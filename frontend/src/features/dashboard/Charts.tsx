@@ -7,7 +7,6 @@ export interface Slice {
   color: string;
 }
 
-/** SVG donut with a hover-driven centre readout. */
 export function Donut({ slices, size = 200, label }: { slices: Slice[]; size?: number; label: string }) {
   const [hovered, setHovered] = useState<string | null>(null);
   const total = slices.reduce((sum, s) => sum + s.value, 0);
@@ -74,7 +73,6 @@ export function Donut({ slices, size = 200, label }: { slices: Slice[]; size?: n
   );
 }
 
-/** Horizontal bars, each labelled directly with its value. */
 export function BarList({ rows, emptyText }: { rows: Slice[]; emptyText?: string }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   if (rows.length === 0) return <p className="muted">{emptyText ?? "No data yet"}</p>;
@@ -93,7 +91,6 @@ export function BarList({ rows, emptyText }: { rows: Slice[]; emptyText?: string
   );
 }
 
-/** Two big opposing numbers with a split bar - used for created vs closed this week. */
 export function Versus({
   left,
   right,

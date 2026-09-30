@@ -17,18 +17,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/**
- * Authenticates each request from its {@code Authorization: Bearer <token>}
- * header by validating the JWT's signature and expiry - no database lookup
- * (see {@link AuthenticatedPrincipal} for the trade-off this implies).
- *
- * <p>A missing, malformed, or expired token is not treated as an error
- * here: the filter simply leaves the request unauthenticated and lets it
- * continue down the chain. Whether that matters is decided afterwards by
- * {@code SecurityConfig}'s {@code authorizeHttpRequests} rules - a public
- * endpoint proceeds fine with no principal, while a protected one is
- * rejected by {@link RestAuthenticationEntryPoint} with a 401.
- */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
@@ -55,9 +43,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 var authentication = new UsernamePasswordAuthenticationToken(principal, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (JwtException | IllegalArgumentException ex) {
-                // Malformed, expired, or signed with a different key.
-                // Never logged at a level that would flood logs with
-                // attacker-controlled noise; the token itself is never logged.
                 log.debug("Rejected invalid access token: {}", ex.getMessage());
                 SecurityContextHolder.clearContext();
             }

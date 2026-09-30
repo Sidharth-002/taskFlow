@@ -1,8 +1,3 @@
-# Local development profile.
-# Values are sourced from environment variables (see ../../../.env.example
-# at the repo root) with developer-friendly local defaults as fallbacks.
-# Defaults intentionally match docker-compose.yml so `docker compose up`
-# followed by running the app locally works with zero extra setup.
 spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:flowdesk}
@@ -20,17 +15,7 @@ spring:
 
 app:
   jwt:
-    # Dev-only fallback so the app runs with zero setup; never used in
-    # prod (no default there - see application-prod.yml). Deliberately
-    # not a "real-looking" secret so it can't be mistaken for one.
     secret: ${JWT_SECRET:dev-only-insecure-jwt-signing-secret-do-not-use-in-prod}
-  # application.yml's defaults are sized for production abuse resistance,
-  # not for a developer (or the integration test suite, which runs on
-  # this profile) making dozens of legitimate register/login/refresh
-  # calls against the same shared local Redis instance in quick
-  # succession. Rate limiting itself is still exercised for real - see
-  # AuthRateLimitFilterIT, which overrides these to a small,
-  # deterministic value for exactly that purpose.
   rate-limit:
     register:
       capacity: 1000

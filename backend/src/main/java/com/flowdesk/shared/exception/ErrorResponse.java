@@ -4,12 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import java.util.Map;
 
-/**
- * The single error response shape returned by every FlowDesk API error,
- * per the spec's Section 23 contract. {@code fieldErrors} is only present
- * for bean-validation failures (Jackson's {@code non_null} inclusion,
- * configured globally in {@code application.yml}, drops it otherwise).
- */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ErrorResponse(
         Instant timestamp,

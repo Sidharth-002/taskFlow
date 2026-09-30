@@ -12,12 +12,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * {@link #create} is only ever called from {@code NotificationEventListener}
- * (a Kafka consumer, not a controller) - there is no
- * {@code POST /api/notifications}; a notification is always a side effect
- * of a ticket domain event, never something a client creates directly.
- */
 @Service
 public class NotificationService {
 
@@ -47,12 +41,6 @@ public class NotificationService {
                 .map(notificationMapper::toResponse);
     }
 
-    /**
-     * A recipient may only mark their own notifications read - there is no
-     * {@code ORG_ADMIN} override, unlike comment moderation, since another
-     * user's notification inbox isn't something an admin has a legitimate
-     * reason to modify.
-     */
     @Transactional
     public NotificationResponse markRead(Long id, AuthenticatedPrincipal caller) {
         Notification notification = notificationRepository.findByIdAndRecipientUserId(id, caller.userId())

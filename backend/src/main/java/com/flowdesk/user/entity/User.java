@@ -16,29 +16,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * A FlowDesk account.
- *
- * <p>
- * Every user belongs to exactly one organization, with one exception:
- * {@link Role#SUPER_ADMIN} accounts are platform-level (they manage
- * organizations themselves, per the role's permissions) and are not
- * scoped to any single tenant, so {@code organization} is nullable and
- * populated for every role except {@code SUPER_ADMIN}.
- *
- * <p>
- * Email is unique platform-wide (not just per-organization), which
- * keeps login simple: a user is looked up by email alone, and their
- * organization is derived from the matched account rather than needing
- * to be supplied separately at login time.
- *
- * <p>
- * The {@code organization} association is {@link FetchType#LAZY} -
- * loading a user should not implicitly pull the organization row unless
- * it's actually needed, which matters once user lists are paginated
- * (see the N+1 prevention notes in the README once ticket/user listing
- * endpoints are built).
- */
 @Entity
 @Table(name = "users")
 @Getter

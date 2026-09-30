@@ -38,12 +38,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-/**
- * Unit tests for {@link AuthService}, with every collaborator mocked -
- * this exercises the service's own logic (workflow, exception mapping,
- * delegation to Spring Security) in isolation, complementing the full
- * stack coverage in {@code AuthControllerIT}.
- */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
@@ -86,9 +80,6 @@ class AuthServiceTest {
         return user;
     }
 
-    // BaseEntity's id is generated, not settable via a public API outside
-    // persistence - tests build it through reflection to simulate "as
-    // returned by the repository after save" without a real database.
     private void setId(Object entity, Long id) {
         try {
             var field = com.flowdesk.shared.persistence.BaseEntity.class.getDeclaredField("id");
@@ -99,7 +90,6 @@ class AuthServiceTest {
         }
     }
 
-    /** Stubs shared only by the tests that actually reach token issuance. */
     private void stubTokenIssuance() {
         when(jwtService.generateAccessToken(any())).thenReturn("access-token");
         when(jwtService.accessTokenTtlSeconds()).thenReturn(900L);
@@ -210,9 +200,6 @@ class AuthServiceTest {
 
     @Test
     void refresh_concurrentRotationOfSameToken_translatesOptimisticLockFailure() {
-        // Simulates the race this entity's @Version exists to close: this
-        // request's own read saw the token as usable, but another request
-        // won the race to rotate it first, so the flush below fails.
         User user = buildUser(1L, Organization.builder().name("Acme").build());
         RefreshToken token = RefreshToken.builder()
                 .user(user)
@@ -229,9 +216,6 @@ class AuthServiceTest {
 
     @Test
     void refresh_deactivatedUser_throwsInvalidRefreshTokenException() {
-        // Regression test for a real gap found during Phase 5 hardening:
-        // this check was entirely missing until now (see AuthService's
-        // Javadoc on refresh()).
         User inactiveUser = buildInactiveUser(1L, Organization.builder().name("Acme").build());
         RefreshToken token = RefreshToken.builder()
                 .user(inactiveUser)

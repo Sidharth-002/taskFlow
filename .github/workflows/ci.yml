@@ -23,12 +23,6 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
 
-      # No `docker compose up` step, and no service containers declared
-      # above - Phase 10 moved every integration test onto ephemeral
-      # Testcontainers (Postgres, Kafka, Redis), which only need a Docker
-      # daemon to talk to. GitHub-hosted ubuntu-latest runners already
-      # have one preinstalled, so `mvn verify` is self-contained here the
-      # same way it is on a developer's machine.
       - name: Build and run full test suite
         working-directory: backend
         run: ./mvnw -B -ntp clean verify
@@ -66,9 +60,6 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
-      # tsc -b (part of `npm run build`) is this frontend's only type
-      # checking - there's no separate test suite (see frontend/README.md
-      # for why), so a clean build is what CI verifies here.
       - name: Type-check and build
         working-directory: frontend
         run: npm run build

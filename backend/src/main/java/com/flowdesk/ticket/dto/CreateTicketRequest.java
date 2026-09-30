@@ -15,7 +15,6 @@ public record CreateTicketRequest(
         @Size(max = 10_000, message = "Description must be at most 10,000 characters")
         String description,
 
-        /** Defaults to {@link TicketPriority#MEDIUM} in the service if omitted. */
         TicketPriority priority,
 
         @NotNull(message = "Project is required")

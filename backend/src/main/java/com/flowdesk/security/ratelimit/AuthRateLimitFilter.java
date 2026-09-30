@@ -13,21 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/**
- * Applies {@link RateLimiterService} to the three auth endpoints that are
- * {@code permitAll()} in {@code SecurityConfig} and therefore have no
- * other per-request cost to an attacker - {@code register}/{@code login}/
- * {@code refresh}. Registered via {@code SecurityConfig.addFilterBefore},
- * ahead of {@code JwtAuthenticationFilter}, so a request that's going to
- * be rejected here never even reaches JWT parsing or (for {@code login})
- * the database-backed {@code AuthenticationManager}.
- *
- * <p>Every other endpoint passes through untouched - {@code logout} isn't
- * limited (revoking a token you already hold isn't a useful attack
- * surface), and every authenticated endpoint already requires a valid JWT,
- * which is a much stronger per-request cost than an IP-based counter
- * would add.
- */
 public class AuthRateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimiterService rateLimiterService;
@@ -73,15 +58,6 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         };
     }
 
-    /**
-     * Deliberately {@code request.getRemoteAddr()}, never a client-supplied
-     * header like {@code X-Forwarded-For}: trusting a header the caller
-     * controls would let anyone bypass the limit by sending a different
-     * value on every request. If FlowDesk is ever deployed behind a
-     * reverse proxy that terminates client connections, that proxy - and
-     * only that proxy, configured as a trusted source - should be the one
-     * populating the real client IP for this filter to read.
-     */
     private String clientIp(HttpServletRequest request) {
         return request.getRemoteAddr();
     }

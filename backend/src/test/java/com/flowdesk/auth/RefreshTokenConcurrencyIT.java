@@ -24,19 +24,6 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/**
- * Proves, with two genuinely overlapping database transactions (not just
- * sequential calls), that {@link RefreshToken}'s {@code @Version} actually
- * closes the race described in its Javadoc: two concurrent attempts to
- * rotate the same refresh token must not both succeed.
- *
- * <p>Deliberately not wrapped in {@code @Transactional} like this
- * project's other integration tests - proving real concurrency requires
- * two independently committed transactions on two separate connections,
- * which a single rolled-back test transaction would not exercise. The
- * handful of rows this leaves behind are harmless test data, isolated by
- * a random organization/user created just for this test.
- */
 @IntegrationTest
 class RefreshTokenConcurrencyIT {
 
@@ -77,7 +64,7 @@ class RefreshTokenConcurrencyIT {
             try {
                 return tx.execute(status -> {
                     RefreshToken token = refreshTokenRepository.findById(tokenId).orElseThrow();
-                    awaitUninterruptibly(barrier); // force both transactions to have read before either writes
+                    awaitUninterruptibly(barrier);
                     token.setRevoked(true);
                     refreshTokenRepository.saveAndFlush(token);
                     return true;
@@ -101,7 +88,7 @@ class RefreshTokenConcurrencyIT {
 
             RefreshToken finalState = refreshTokenRepository.findById(tokenId).orElseThrow();
             assertThat(finalState.isRevoked()).isTrue();
-            assertThat(finalState.getVersion()).isEqualTo(1L); // exactly one successful update was applied
+            assertThat(finalState.getVersion()).isEqualTo(1L);
         } finally {
             executor.shutdownNow();
         }

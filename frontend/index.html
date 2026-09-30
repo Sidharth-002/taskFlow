@@ -12,7 +12,6 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;600;700&display=swap"
     />
     <script>
-      // Apply the saved theme before first paint so light mode doesn't flash dark.
       try {
         var t = localStorage.getItem("flowdesk.theme");
         if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;

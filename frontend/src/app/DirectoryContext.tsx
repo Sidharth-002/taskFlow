@@ -5,11 +5,6 @@ import { listProjects, type ProjectResponse } from "../features/projects/api";
 import type { UserSummary } from "../shared/types";
 import { fullName } from "../shared/lib/format";
 
-// The organization's users, teams and projects, loaded once per session and
-// shared by every page that needs a picker or has to resolve an id to a name
-// (TicketDetail only carries ids). Pages that change one of these call the
-// matching reload so every other page sees the change.
-
 interface Directory {
   users: UserSummary[];
   teams: TeamResponse[];
@@ -34,7 +29,6 @@ export function DirectoryProvider({ children }: { children: ReactNode }) {
   const reloadProjects = useCallback(() => listProjects().then(setProjects), []);
 
   useEffect(() => {
-    // One failing list (e.g. a transient error) shouldn't blank the others.
     Promise.allSettled([reloadUsers(), reloadTeams(), reloadProjects()]).finally(() => setReady(true));
   }, [reloadUsers, reloadTeams, reloadProjects]);
 

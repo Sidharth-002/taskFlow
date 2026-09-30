@@ -13,7 +13,6 @@ export function StatusPill({ status }: { status: TicketStatus }) {
   );
 }
 
-/** Jira-style chevrons: more bars = more urgent. */
 export function PriorityIcon({ priority, size = 16 }: { priority: TicketPriority; size?: number }) {
   const meta = PRIORITY_META[priority];
   const bars = 4 - meta.rank;

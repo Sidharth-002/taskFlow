@@ -11,11 +11,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * {@code ORG_ADMIN}/{@code TEAM_LEAD} only - aggregated reporting is a
- * managerial view in this design (see {@code DashboardService}'s
- * Javadoc), not something {@code AGENT}/{@code USER} get a version of.
- */
 @RestController
 @Tag(name = "Dashboard")
 @RequestMapping("/api/dashboard")

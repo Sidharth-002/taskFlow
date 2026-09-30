@@ -11,16 +11,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * One immutable row per ticket domain event - the permanent activity
- * history for a ticket, written by {@code AuditEventListener} and never
- * updated or deleted by application code afterward.
- *
- * <p>Plain columns rather than {@code @ManyToOne} associations, same
- * reasoning as {@code Notification}: this is a log record, not a live
- * relationship, and {@code ticketId} in particular must survive the
- * ticket itself being deleted (see the migration's comment).
- */
 @Entity
 @Table(name = "audit_logs")
 @Getter

@@ -28,21 +28,6 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/**
- * Formalizes {@link Ticket}'s {@code @Version} guarantee (see its Javadoc)
- * with the same real, two-thread, two-transaction proof
- * {@code RefreshTokenConcurrencyIT} uses for refresh token rotation:
- * two agents concurrently editing the same ticket (one reassigning it,
- * one changing its status) must not silently overwrite one another - the
- * second writer must lose with an optimistic locking failure instead of
- * both succeeding.
- *
- * <p>Deliberately not wrapped in {@code @Transactional} for the same
- * reason as {@code RefreshTokenConcurrencyIT}: exercising a genuine race
- * needs two independently committed transactions on two separate
- * connections. Left-over rows are harmless, isolated by a random
- * organization/users created just for this test.
- */
 @IntegrationTest
 class TicketConcurrencyIT {
 
@@ -92,7 +77,7 @@ class TicketConcurrencyIT {
             try {
                 return tx.execute(status -> {
                     Ticket ticket = ticketRepository.findById(ticketId).orElseThrow();
-                    awaitUninterruptibly(barrier); // force both transactions to have read before either writes
+                    awaitUninterruptibly(barrier);
                     ticket.setStatus(TicketStatus.IN_PROGRESS);
                     ticketRepository.saveAndFlush(ticket);
                     return true;
@@ -116,7 +101,7 @@ class TicketConcurrencyIT {
 
             Ticket finalState = ticketRepository.findById(ticketId).orElseThrow();
             assertThat(finalState.getStatus()).isEqualTo(TicketStatus.IN_PROGRESS);
-            assertThat(finalState.getVersion()).isEqualTo(1L); // exactly one successful update was applied
+            assertThat(finalState.getVersion()).isEqualTo(1L);
         } finally {
             executor.shutdownNow();
         }

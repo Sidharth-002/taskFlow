@@ -18,14 +18,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Full team lifecycle through the real HTTP/security stack: create, add
- * members, assign a lead, and - the reason Team management exists at all
- * in this phase - proves {@code TEAM_LEAD}'s ticket visibility rule
- * (Section 6) actually works end-to-end now that a team lead can be
- * assigned through the real API, not just constructed directly in
- * {@code TicketServiceTest}'s unit tests.
- */
 @WebIntegrationTest
 @Transactional
 class TeamManagementIT {
@@ -126,12 +118,10 @@ class TeamManagementIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("userId", leadA.id()))));
 
-        // Lead of team A can add a member to team A.
         mockMvc.perform(post("/api/teams/" + teamA + "/members/" + someUser.id())
                         .header("Authorization", "Bearer " + leadA.token()))
                 .andExpect(status().isOk());
 
-        // But not to team B, which they don't lead.
         mockMvc.perform(post("/api/teams/" + teamB + "/members/" + someUser.id())
                         .header("Authorization", "Bearer " + leadA.token()))
                 .andExpect(status().isForbidden());
@@ -154,7 +144,6 @@ class TeamManagementIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("userId", lead.id()))));
 
-        // A ticket assigned to this team (not to any specific person).
         MvcResult ticketResult = mockMvc.perform(post("/api/tickets")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)

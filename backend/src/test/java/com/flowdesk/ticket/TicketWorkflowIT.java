@@ -19,18 +19,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * End-to-end HTTP-level coverage of ticket CRUD, workflow, assignment,
- * comments and RBAC through the real Spring Security filter chain.
- *
- * <p>The exhaustive business-rule matrix (every role x every visibility
- * case) is already covered at the unit level in {@code TicketServiceTest}
- * / {@code CommentServiceTest} - this class instead proves the pieces
- * those unit tests can't reach: real HTTP status codes,
- * {@code @PreAuthorize} actually rejecting the right roles, JSON
- * (de)serialization, and the whole request pipeline wired together
- * correctly.
- */
 @WebIntegrationTest
 @Transactional
 class TicketWorkflowIT {
@@ -105,7 +93,6 @@ class TicketWorkflowIT {
                 .andReturn();
         long ticketId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asLong();
 
-        // Get the agent's user id to assign the ticket to them.
         MvcResult meResult = mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + agentToken))
                 .andReturn();
         long agentId = objectMapper.readTree(meResult.getResponse().getContentAsString()).get("id").asLong();
@@ -117,23 +104,17 @@ class TicketWorkflowIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.assignedToId").value(agentId));
 
-        // Agent sees it in their own list now.
         mockMvc.perform(get("/api/tickets").header("Authorization", "Bearer " + agentToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(ticketId))
                 .andExpect(jsonPath("$.totalElements").value(1));
 
-        // Agent moves it through the workflow.
         mockMvc.perform(patch("/api/tickets/" + ticketId)
                         .header("Authorization", "Bearer " + agentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("status", "IN_PROGRESS"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
-                // 2, not 0 or 1: this is the ticket's second update (assign,
-                // then this status change) - regression check that the
-                // response reflects the post-flush version, not a stale
-                // in-memory value from before Hibernate's dirty checking ran.
                 .andExpect(jsonPath("$.version").value(2));
 
         mockMvc.perform(post("/api/tickets/" + ticketId + "/comments")
@@ -201,7 +182,6 @@ class TicketWorkflowIT {
         MvcResult me = mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + agentToken)).andReturn();
         long agentId = objectMapper.readTree(me.getResponse().getContentAsString()).get("id").asLong();
 
-        // Assign it to the agent first (as admin) so they can at least see it.
         mockMvc.perform(patch("/api/tickets/" + ticketId)
                 .header("Authorization", "Bearer " + org.adminToken())
                 .contentType(MediaType.APPLICATION_JSON)
@@ -239,7 +219,6 @@ class TicketWorkflowIT {
         mockMvc.perform(delete("/api/tickets/" + ticketId).header("Authorization", "Bearer " + userToken))
                 .andExpect(status().isForbidden());
 
-        // But they can view and comment on their own ticket.
         mockMvc.perform(get("/api/tickets/" + ticketId).header("Authorization", "Bearer " + userToken))
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/tickets/" + ticketId + "/comments")
@@ -293,14 +272,12 @@ class TicketWorkflowIT {
                 .andReturn();
         long commentId = objectMapper.readTree(comment.getResponse().getContentAsString()).get("id").asLong();
 
-        // Org admin (not the author) tries to edit it.
         mockMvc.perform(patch("/api/comments/" + commentId)
                         .header("Authorization", "Bearer " + org.adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("body", "hacked"))))
                 .andExpect(status().isForbidden());
 
-        // But the admin CAN delete it (moderation override).
         mockMvc.perform(delete("/api/comments/" + commentId).header("Authorization", "Bearer " + org.adminToken()))
                 .andExpect(status().isNoContent());
     }

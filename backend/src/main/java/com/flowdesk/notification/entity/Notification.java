@@ -12,18 +12,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * An in-app notification for one recipient, created by
- * {@code NotificationEventListener} in reaction to a Kafka
- * {@code TicketDomainEvent} - never written directly by a controller.
- *
- * <p>{@code organizationId}/{@code recipientUserId}/{@code ticketId} are
- * plain columns, not {@code @ManyToOne} associations - this is a log-like
- * record of something that already happened, not a live relationship that
- * needs traversing, and denormalizing avoids a join (or a broken
- * reference, for {@code ticketId} - see the migration's comment) on every
- * read of "my notifications".
- */
 @Entity
 @Table(name = "notifications")
 @Getter

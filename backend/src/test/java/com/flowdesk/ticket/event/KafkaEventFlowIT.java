@@ -21,27 +21,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * Proves the Phase 8 Kafka pipeline end-to-end through the real HTTP API:
- * a ticket-mutating request publishes a domain event
- * ({@code TicketEventPublisher}) which, only after the request's
- * transaction commits ({@code TicketEventKafkaRelay}), is sent to a real
- * Kafka broker and independently consumed by both
- * {@code NotificationEventListener} and {@code AuditEventListener}.
- *
- * <p>Deliberately <b>not</b> {@code @Transactional} like this project's
- * other MockMvc integration tests: that annotation wraps the whole test
- * method in one transaction that's rolled back at the end, which would
- * mean the service-layer transactions backing each HTTP call never
- * actually commit - and {@code TicketEventKafkaRelay} only relays an event
- * {@code AFTER_COMMIT}. Proving this pipeline for real requires the same
- * genuinely-committed-transactions approach as
- * {@code RefreshTokenConcurrencyIT}/{@code TicketConcurrencyIT}.
- *
- * <p>Consumption is asynchronous, so every assertion here polls with a
- * bounded timeout rather than asserting immediately after the triggering
- * HTTP call returns.
- */
 @WebIntegrationTest
 class KafkaEventFlowIT {
 
@@ -125,7 +104,6 @@ class KafkaEventFlowIT {
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("content");
     }
 
-    /** Polls {@code supplier} every 200ms until {@code condition} passes or {@code timeout} elapses. */
     private <T> T awaitCondition(Supplier<T> supplier, Predicate<T> condition, Duration timeout) throws Exception {
         Instant deadline = Instant.now().plus(timeout);
         T last = null;
@@ -219,8 +197,6 @@ class KafkaEventFlowIT {
         long projectId = createProject(org.adminToken());
         long ticketId = createTicket(org.adminToken(), projectId);
         CreatedUser agent = createAndLogin(org.adminToken(), "AGENT");
-        // An AGENT can only see/act on tickets assigned to them - assign
-        // first so the agent's own comment call below is even reachable.
         mockMvc.perform(patch("/api/tickets/" + ticketId)
                 .header("Authorization", "Bearer " + org.adminToken())
                 .contentType(MediaType.APPLICATION_JSON)
@@ -233,8 +209,6 @@ class KafkaEventFlowIT {
                         .content(objectMapper.writeValueAsString(Map.of("body", "Looking into it"))))
                 .andExpect(status().isCreated());
 
-        // The ticket's creator (the ORG_ADMIN who created it, not the agent
-        // who just commented) gets notified.
         awaitCondition(
                 () -> {
                     try {
@@ -246,8 +220,7 @@ class KafkaEventFlowIT {
                 n -> containsNotificationForTicket(n, ticketId, "TICKET_COMMENT_ADDED"),
                 Duration.ofSeconds(15));
 
-        // The commenter themselves never gets notified about their own comment.
-        Thread.sleep(1000); // give the (correctly not-happening) notification a moment, were it to happen
+        Thread.sleep(1000);
         JsonNode agentNotifications = notifications(agent.token());
         assertThat(containsNotificationForTicket(agentNotifications, ticketId, "TICKET_COMMENT_ADDED")).isFalse();
     }
@@ -258,7 +231,6 @@ class KafkaEventFlowIT {
         long projectId = createProject(org.adminToken());
         long ticketId = createTicket(org.adminToken(), projectId);
 
-        // Walk the ticket to a closeable state (OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED).
         mockMvc.perform(patch("/api/tickets/" + ticketId)
                 .header("Authorization", "Bearer " + org.adminToken())
                 .contentType(MediaType.APPLICATION_JSON)

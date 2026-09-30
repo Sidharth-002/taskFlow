@@ -26,21 +26,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Create/update/deactivate/assign-lead are {@code ORG_ADMIN}-only
- * (enforced in {@code TeamController}). Adding/removing members is the
- * one action also open to the team's own {@code TEAM_LEAD} (Section 6:
- * "Manage team members") - a row-level check done here, the same pattern
- * as ticket reassignment authorization in {@code TicketService}.
- *
- * <p>{@code getById} is cached (Phase 7, see {@code CacheConfig} and
- * {@code ProjectService}'s Javadoc for the caching rationale/key
- * convention this follows). {@code addMember}/{@code removeMember}
- * deliberately do <em>not</em> evict {@code TEAMS_CACHE} - they change
- * {@code Team.members}, but {@link TeamResponse} doesn't expose the
- * member list at all (see {@code listMembers}, which is separate and
- * uncached), so the cached response stays accurate.
- */
 @Service
 public class TeamService {
 

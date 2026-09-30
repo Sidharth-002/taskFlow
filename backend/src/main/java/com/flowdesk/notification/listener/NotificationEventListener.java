@@ -19,20 +19,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-/**
- * Consumes every {@link TicketDomainEvent} on {@link KafkaTopics#TICKET_EVENTS}
- * with its own consumer group ({@code notification-service}) - independent
- * from {@code AuditEventListener}'s group, so both see every event; a
- * shared group would split events between the two instead.
- *
- * <p>{@code TicketCreatedEvent} deliberately produces no notification: the
- * creator already knows they just created the ticket, and no one else is
- * involved yet (it isn't assigned to anyone at creation in this
- * design - see {@code TicketService.create}, which does accept an initial
- * {@code assignedToId}, but treats it as part of creation, not a
- * standalone assignment worth notifying about the same way a later
- * reassignment is).
- */
 @Component
 public class NotificationEventListener {
 
@@ -59,12 +45,11 @@ public class NotificationEventListener {
         } else if (event instanceof TicketOverdueEvent e) {
             handleOverdue(e);
         }
-        // TicketCreatedEvent: no notification.
     }
 
     private void handleAssigned(TicketAssignedEvent e) {
         if (e.assignedToId().equals(e.assignedById())) {
-            return; // self-assignment - nothing to notify yourself about
+            return;
         }
         notificationService.create(
                 e.organizationId(), e.assignedToId(), e.ticketId(), NotificationType.TICKET_ASSIGNED,
@@ -79,7 +64,7 @@ public class NotificationEventListener {
 
     private void handleStatusChanged(TicketStatusChangedEvent e) {
         if (e.newStatus() == TicketStatus.CLOSED) {
-            return; // handleClosed already covers this transition with a clearer message
+            return;
         }
         notifyTicketParticipants(
                 e.ticketId(), e.organizationId(), e.changedById(), NotificationType.TICKET_STATUS_CHANGED,
@@ -93,26 +78,14 @@ public class NotificationEventListener {
     }
 
     private void handleOverdue(TicketOverdueEvent e) {
-        // No actor to exclude - a system-detected overdue check, not
-        // caused by any single user's action (see the event's Javadoc).
         notifyTicketParticipants(
                 e.ticketId(), e.organizationId(), null, NotificationType.TICKET_OVERDUE,
                 "Ticket #%d is overdue (was due %s)".formatted(e.ticketId(), e.dueDate()));
     }
 
-    /**
-     * Notifies the ticket's creator and current assignee, excluding
-     * whoever caused this event - a status change or comment you made
-     * yourself doesn't need to notify you about it. {@code actorId} may be
-     * {@code null} (see {@link #handleOverdue}), in which case no one is
-     * excluded.
-     */
     private void notifyTicketParticipants(Long ticketId, Long organizationId, Long actorId, NotificationType type, String message) {
         Ticket ticket = ticketRepository.findById(ticketId).orElse(null);
         if (ticket == null) {
-            // The ticket was deleted between the event being published and
-            // this consumer processing it - rare, but not an error worth
-            // failing the listener over.
             log.warn("Skipping {} notification for ticket {} - ticket no longer exists", type, ticketId);
             return;
         }

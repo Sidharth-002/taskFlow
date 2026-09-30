@@ -4,7 +4,6 @@ export interface NavItem {
   to: string;
   label: string;
   icon: IconName;
-  /** Second key of the "g then <key>" navigation shortcut. */
   chord: string;
 }
 

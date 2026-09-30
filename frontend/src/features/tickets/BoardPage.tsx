@@ -57,7 +57,6 @@ export function BoardPage() {
       return;
     }
     const from = ticket.status;
-    // Optimistic: the card moves immediately and snaps back if the server says no.
     setTickets((prev) => prev?.map((t) => (t.id === ticket.id ? { ...t, status: to } : t)) ?? prev);
     try {
       const updated = await updateTicket(ticket.id, { status: to });

@@ -15,9 +15,6 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserSummary | null>(null);
-  // Starts true: with a token already in localStorage we don't know it's
-  // still valid until /me resolves, and ProtectedRoute waits on this so a
-  // valid session doesn't flash the login screen first.
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tokenStorage.clear();
         setUser(null);
         if (refreshToken) {
-          // Best-effort: the tokens are already discarded client-side.
           await authApi.logout(refreshToken).catch(() => undefined);
         }
       },
@@ -70,7 +66,6 @@ export function useAuth(): AuthContextValue {
   return context;
 }
 
-/** For pages rendered inside ProtectedRoute, where a user is guaranteed. */
 export function useCurrentUser(): UserSummary {
   const { user } = useAuth();
   if (!user) {

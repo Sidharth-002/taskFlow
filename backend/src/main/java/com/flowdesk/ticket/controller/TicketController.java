@@ -30,18 +30,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Role gates here only express "can this role ever call this endpoint
- * shape". Which specific tickets a caller may see or touch (their own,
- * their team's, all of the org's) is a row-level concern resolved in
- * {@code TicketService} once the ticket is loaded - see its Javadoc.
- *
- * <p>{@code USER} is excluded from {@code PUT}/{@code PATCH}/{@code DELETE}:
- * per Section 6 of the spec, a plain {@code USER} may create and view
- * their own tickets and comment on them, but not edit or delete a ticket
- * after creation - only {@code AGENT}/{@code TEAM_LEAD}/{@code ORG_ADMIN}
- * manage a ticket's lifecycle from there.
- */
 @RestController
 @Tag(name = "Tickets")
 @RequestMapping("/api/tickets")

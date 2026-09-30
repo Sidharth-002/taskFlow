@@ -45,9 +45,6 @@ public class CommentService {
 
     @Transactional
     public CommentResponse add(Long ticketId, CreateCommentRequest request, AuthenticatedPrincipal caller) {
-        // Delegates to TicketService for the tenant/visibility check rather
-        // than duplicating it - a comment is only addable on a ticket the
-        // caller could otherwise see.
         Ticket ticket = ticketService.loadVisible(ticketId, caller);
         User author = userRepository.getReferenceById(caller.userId());
 
@@ -65,29 +62,19 @@ public class CommentService {
 
     @Transactional(readOnly = true)
     public List<CommentResponse> list(Long ticketId, AuthenticatedPrincipal caller) {
-        ticketService.loadVisible(ticketId, caller); // visibility check; result unused beyond that
+        ticketService.loadVisible(ticketId, caller);
         return commentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId).stream()
                 .map(commentMapper::toResponse)
                 .toList();
     }
 
-    /** Only the comment's own author may edit it - no admin override, per the spec. */
     @Transactional
     public CommentResponse update(Long commentId, CreateCommentRequest request, AuthenticatedPrincipal caller) {
         Comment comment = loadOwned(commentId, caller, false);
         comment.setBody(request.body());
-        // saveAndFlush: see TicketService.update's comment on why - without
-        // it, the returned updatedAt would be the comment's previous one.
         return commentMapper.toResponse(commentRepository.saveAndFlush(comment));
     }
 
-    /**
-     * The author may delete their own comment; {@code ORG_ADMIN} may also
-     * delete any comment in their organization for moderation purposes -
-     * an addition beyond the spec's literal "delete own comment", made
-     * because some ability to remove inappropriate content is a
-     * reasonable, minimal expectation for an admin role.
-     */
     @Transactional
     public void delete(Long commentId, AuthenticatedPrincipal caller) {
         Comment comment = loadOwned(commentId, caller, true);

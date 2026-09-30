@@ -24,11 +24,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * {@code SUPER_ADMIN} is excluded from every method here: projects are an
- * organization-scoped resource, and {@code SUPER_ADMIN} accounts have no
- * organization (see {@code User.organization}'s Javadoc).
- */
 @RestController
 @Tag(name = "Projects")
 @RequestMapping("/api/projects")

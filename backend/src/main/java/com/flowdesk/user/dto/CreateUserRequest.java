@@ -7,15 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/**
- * {@code ORG_ADMIN}-only: adds a colleague directly to the caller's own
- * organization. Unlike {@code auth.dto.RegisterRequest}, this never
- * creates a new organization - discovered as a hard requirement while
- * verifying Phase 4's ticket assignment/visibility rules, since without
- * it an organization can never have more than the one admin who
- * registered it, which makes "assign to an AGENT" or "TEAM_LEAD's view"
- * impossible to exercise at all.
- */
 public record CreateUserRequest(
 
         @NotBlank(message = "First name is required")

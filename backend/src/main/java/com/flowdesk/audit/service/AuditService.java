@@ -11,12 +11,6 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * {@link #record} is only ever called from {@code AuditEventListener} (a
- * Kafka consumer) - there is no way to create or modify an audit entry
- * through the API; it's a byproduct of a ticket domain event, and rows are
- * never updated or deleted once written.
- */
 @Service
 public class AuditService {
 
@@ -42,15 +36,9 @@ public class AuditService {
                 .build());
     }
 
-    /**
-     * Delegates to {@code TicketService.loadVisible} for the tenant/
-     * visibility check - the same rule as viewing the ticket itself
-     * applies to viewing its activity history (the same pattern
-     * {@code CommentService} uses).
-     */
     @Transactional(readOnly = true)
     public List<AuditLogResponse> listForTicket(Long ticketId, AuthenticatedPrincipal caller) {
-        ticketService.loadVisible(ticketId, caller); // visibility check; result unused beyond that
+        ticketService.loadVisible(ticketId, caller);
         return auditLogRepository.findByTicketIdOrderByOccurredAtAsc(ticketId).stream()
                 .map(auditLogMapper::toResponse)
                 .toList();

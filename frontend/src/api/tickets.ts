@@ -19,7 +19,6 @@ export function createTicket(input: {
   return apiClient.post<TicketDetail>("/api/tickets", input).then((r) => r.data);
 }
 
-/** Backs both a plain field edit and a status transition - the backend treats both as the same partial update (see `UpdateTicketRequest`'s Javadoc). */
 export function updateTicket(
   id: number,
   input: Partial<{

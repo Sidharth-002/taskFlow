@@ -8,5 +8,4 @@ CREATE TABLE comments
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Every read of a ticket's comment thread filters by ticket_id.
 CREATE INDEX idx_comments_ticket_id ON comments (ticket_id);

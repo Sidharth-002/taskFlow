@@ -33,9 +33,6 @@ class RefreshTokenCleanupJobTest {
 
         var captor = org.mockito.ArgumentCaptor.forClass(Instant.class);
         verify(refreshTokenRepository).deleteExpiredBefore(captor.capture());
-        // The cutoff passed is "now" at call time - within a generous
-        // tolerance rather than asserting exact equality with a
-        // separately-captured Instant.now(), which would be flaky.
         assertThatCutoffIsRecent(captor.getValue());
     }
 
